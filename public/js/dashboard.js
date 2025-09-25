@@ -1,83 +1,168 @@
-// public/js/dashboard.js
-class Dashboard {
+class WhiteBitTradingDashboard {
     constructor() {
-        this.isConnected = false;
-        this.positions = [];
-        this.prices = {};
+        this.whitebitStatus = { running: false, connected: false };
+        this.autoScrollLogs = true;
+        this.orders = [];
+        this.balance = {};
+        this.tradingPairs = [];
 
         this.initializeElements();
         this.attachEventListeners();
-        this.startUpdating();
+        this.startUpdateLoop();
+        this.updateTime();
+        this.loadTradingPairs();
     }
 
     initializeElements() {
-        // Кнопки управління
-        this.startBtn = document.getElementById('startBot');
-        this.stopBtn = document.getElementById('stopBot');
-        this.clearLogsBtn = document.getElementById('clearLogs');
-
-        // Елементи статусу
-        this.botStatus = document.getElementById('botStatus');
-        this.botStatusText = document.getElementById('botStatusText');
-        this.binanceStatus = document.getElementById('binanceStatus');
-        this.binanceStatusText = document.getElementById('binanceStatusText');
-        this.mexcStatus = document.getElementById('mexcStatus');
-        this.mexcStatusText = document.getElementById('mexcStatusText');
-
-        // Статистика
-        this.activePositionsEl = document.getElementById('activePositions');
-        this.totalPnLEl = document.getElementById('totalPnL');
-        this.dailyPnLEl = document.getElementById('dailyPnL');
-        this.binanceBalanceEl = document.getElementById('binanceBalance');
-        this.mexcBalanceEl = document.getElementById('mexcBalance');
-
-        // Контейнери
-        this.positionsTable = document.getElementById('positionsTable');
+        this.whitebitCard = document.getElementById('whitebitCard');
+        this.whitebitStatusIndicator = document.getElementById('whitebitStatus');
+        this.connectionText = document.getElementById('connectionText');
+        this.whitebitBalance = document.getElementById('whitebitBalance');
+        this.whitebitOrders = document.getElementById('whitebitOrders');
+        this.tradingPairsElement = document.getElementById('tradingPairs');
+        this.startWhitebit = document.getElementById('startWhitebit');
+        this.stopWhitebit = document.getElementById('stopWhitebit');
+        this.testConnection = document.getElementById('testConnection');
         this.logsContainer = document.getElementById('logsContainer');
-        this.pricesContainer = document.getElementById('pricesContainer');
+        this.ordersTableBody = document.getElementById('ordersTableBody');
+        this.balanceContainer = document.getElementById('balanceContainer');
+        this.currentTime = document.getElementById('currentTime');
+        this.tradingForm = document.getElementById('tradingForm');
+        this.tradingPairSelect = document.getElementById('tradingPair');
     }
 
     attachEventListeners() {
-        this.startBtn.addEventListener('click', () => this.startBot());
-        this.stopBtn.addEventListener('click', () => this.stopBot());
-        this.clearLogsBtn.addEventListener('click', () => this.clearLogs());
+        this.startWhitebit.addEventListener('click', () => this.startWhitebit());
+        this.stopWhitebit.addEventListener('click', () => this.stopWhitebit());
+        this.testConnection.addEventListener('click', () => this.testApiConnection());
+        document.getElementById('refreshAll').addEventListener('click', () => this.refreshAll());
+        document.getElementById('emergencyStop').addEventListener('click', () => this.emergencyStop());
+        document.getElementById('clearLogs').addEventListener('click', () => this.clearLogs());
+        document.getElementById('toggleAutoScroll').addEventListener('click', () => this.toggleAutoScroll());
+        this.tradingForm.addEventListener('submit', (e) => this.handleTradeSubmit(e));
+        document.getElementById('orderType').addEventListener('change', (e) => {
+            const priceGroup = document.getElementById('priceGroup');
+            if (e.target.value === 'market') {
+                priceGroup.style.display = 'none';
+            } else {
+                priceGroup.style.display = 'block';
+            }
+        });
     }
 
-    async startBot() {
+    async startWhitebit() {
         try {
-            this.startBtn.disabled = true;
-            const response = await fetch('/api/start', { method: 'POST' });
+            this.setWhitebitLoading(true);
+            this.addLog('🚀 Запуск WhiteBit...', 'info');
+            const response = await fetch('/api/exchanges/whitebit/start', { method: 'POST' });
             const result = await response.json();
-
             if (result.success) {
-                this.addLog('✅ Бот запущено', 'success');
-                await this.updateStatus();
+                this.whitebitStatus.running = true;
+                this.whitebitStatus.connected = true;
+                this.addLog('✅ WhiteBit запущено', 'success');
+                this.showToast('WhiteBit запущено', 'success');
             } else {
-                this.addLog('❌ Помилка запуску бота', 'error');
+                throw new Error(result.error || 'Невідома помилка');
             }
         } catch (error) {
-            this.addLog(`❌ Помилка: ${error.message}`, 'error');
+            this.addLog(`⚠ Помилка запуску WhiteBit: ${error.message}`, 'error');
+            this.showToast('Помилка запуску WhiteBit', 'error');
         } finally {
-            this.startBtn.disabled = false;
+            this.setWhitebitLoading(false);
+            this.updateWhitebitButtons();
         }
     }
 
-    async stopBot() {
+    async stopWhitebit() {
         try {
-            this.stopBtn.disabled = true;
-            const response = await fetch('/api/stop', { method: 'POST' });
+            this.setWhitebitLoading(true);
+            this.addLog('🛑 Зупинка WhiteBit...', 'warning');
+            const response = await fetch('/api/exchanges/whitebit/stop', { method: 'POST' });
             const result = await response.json();
-
             if (result.success) {
-                this.addLog('🛑 Бот зупинено', 'warning');
-                await this.updateStatus();
+                this.whitebitStatus.running = false;
+                this.whitebitStatus.connected = false;
+                this.addLog('✅ WhiteBit зупинено', 'warning');
+                this.showToast('WhiteBit зупинено', 'warning');
             } else {
-                this.addLog('❌ Помилка зупинки бота', 'error');
+                throw new Error(result.error || 'Невідома помилка');
             }
         } catch (error) {
-            this.addLog(`❌ Помилка: ${error.message}`, 'error');
+            this.addLog(`⚠ Помилка зупинки WhiteBit: ${error.message}`, 'error');
+            this.showToast('Помилка зупинки WhiteBit', 'error');
         } finally {
-            this.stopBot.disabled = false;
+            this.setWhitebitLoading(false);
+            this.updateWhitebitButtons();
+        }
+    }
+
+    async testApiConnection() {
+        try {
+            this.addLog('🧪 Тестування API підключення...', 'info');
+            const response = await fetch('/api/test-connection');
+            const result = await response.json();
+            if (result.success) {
+                this.addLog('✅ API тестування пройшло успішно', 'success');
+                this.showToast('API працює коректно', 'success');
+            } else {
+                throw new Error(result.error || 'Тест не пройшов');
+            }
+        } catch (error) {
+            this.addLog(`❌ Помилка тестування API: ${error.message}`, 'error');
+            this.showToast('Помилка API тестування', 'error');
+        }
+    }
+
+    async emergencyStop() {
+        if (!confirm('⚠️ Ви впевнені? Це скасує всі ордери та відключить біржу!')) {
+            return;
+        }
+        try {
+            this.addLog('🚨 ЕКСТРЕНА ЗУПИНКА!', 'error');
+            const response = await fetch('/api/emergency-stop', { method: 'POST' });
+            const result = await response.json();
+            if (result.success) {
+                this.whitebitStatus.running = false;
+                this.whitebitStatus.connected = false;
+                this.addLog('✅ Екстрена зупинка завершена', 'warning');
+                this.showToast('Екстрена зупинка завершена', 'warning');
+            }
+        } catch (error) {
+            this.addLog(`⚠ Помилка екстреної зупинки: ${error.message}`, 'error');
+            this.showToast('Помилка екстреної зупинки', 'error');
+        }
+        this.updateWhitebitButtons();
+    }
+
+    setWhitebitLoading(loading) {
+        if (loading) {
+            this.whitebitCard.classList.add('loading');
+            this.startWhitebit.classList.add('loading');
+            this.stopWhitebit.classList.add('loading');
+            this.startWhitebit.disabled = true;
+            this.stopWhitebit.disabled = true;
+        } else {
+            this.whitebitCard.classList.remove('loading');
+            this.startWhitebit.classList.remove('loading');
+            this.stopWhitebit.classList.remove('loading');
+        }
+    }
+
+    updateWhitebitButtons() {
+        if (this.whitebitStatus.running) {
+            this.startWhitebit.disabled = true;
+            this.stopWhitebit.disabled = false;
+            this.whitebitStatusIndicator.className = 'status-indicator status-online';
+            this.connectionText.textContent = 'Підключено';
+            this.whitebitCard.classList.add('connected');
+            this.whitebitCard.classList.remove('disconnected');
+        } else {
+            this.startWhitebit.disabled = false;
+            this.stopWhitebit.disabled = true;
+            this.whitebitStatusIndicator.className = 'status-indicator status-offline';
+            this.connectionText.textContent = 'Відключено';
+            this.whitebitCard.classList.add('disconnected');
+            this.whitebitCard.classList.remove('connected');
         }
     }
 
@@ -85,196 +170,312 @@ class Dashboard {
         try {
             const response = await fetch('/api/status');
             const status = await response.json();
-
-            // Оновлення статусу бота
-            this.updateBotStatus(status.isRunning);
-
-            // Оновлення статусу бірж
-            this.updateExchangeStatus('binance', status.connectedExchanges.binance);
-            this.updateExchangeStatus('mexc', status.connectedExchanges.mexc);
-
-            // Оновлення позицій
-            this.updatePositions(status.activePositions);
-
+            if (status.connectedExchanges && status.connectedExchanges.whitebit !== undefined) {
+                this.whitebitStatus.connected = status.connectedExchanges.whitebit;
+                this.whitebitStatus.running = status.connectedExchanges.whitebit;
+            }
+            this.updateWhitebitButtons();
         } catch (error) {
             console.error('Помилка оновлення статусу:', error);
         }
     }
 
-    async updateBalances() {
+    async updateBalance() {
         try {
             const response = await fetch('/api/balances');
             const balances = await response.json();
-
-            if (balances.binance) {
-                this.binanceBalanceEl.textContent = `$${balances.binance.availableBalance.toFixed(2)}`;
+            if (balances.whitebit) {
+                this.balance = balances.whitebit;
+                if (!balances.whitebit.error) {
+                    let totalBalance = 0;
+                    if (Array.isArray(balances.whitebit)) {
+                        balances.whitebit.forEach(asset => {
+                            totalBalance += parseFloat(asset.main_balance || 0);
+                        });
+                    }
+                    this.whitebitBalance.textContent = `${totalBalance.toFixed(2)}`;
+                    this.updateBalanceTab();
+                } else {
+                    this.whitebitBalance.textContent = 'Помилка';
+                }
             }
-
-            if (balances.mexc) {
-                this.mexcBalanceEl.textContent = `$${balances.mexc.availableBalance.toFixed(2)}`;
-            }
-
         } catch (error) {
-            console.error('Помилка оновлення балансів:', error);
+            console.error('Помилка оновлення балансу:', error);
+            this.whitebitBalance.textContent = 'Помилка';
         }
     }
 
-    updateBotStatus(isRunning) {
-        if (isRunning) {
-            this.botStatus.className = 'status-indicator status-online';
-            this.botStatusText.textContent = 'Активний';
-            this.startBtn.disabled = true;
-            this.stopBtn.disabled = false;
-        } else {
-            this.botStatus.className = 'status-indicator status-offline';
-            this.botStatusText.textContent = 'Не активний';
-            this.startBtn.disabled = false;
-            this.stopBtn.disabled = true;
+    async updateActiveOrders() {
+        try {
+            const response = await fetch('/api/active-orders');
+            const result = await response.json();
+            if (result.success && result.orders) {
+                this.orders = result.orders.records || [];
+                this.whitebitOrders.textContent = this.orders.length;
+                this.updateOrdersTable();
+            }
+        } catch (error) {
+            console.error('Помилка оновлення ордерів:', error);
         }
     }
 
-    updateExchangeStatus(exchange, isConnected) {
-        const statusEl = exchange === 'binance' ? this.binanceStatus : this.mexcStatus;
-        const textEl = exchange === 'binance' ? this.binanceStatusText : this.mexcStatusText;
-
-        if (isConnected) {
-            statusEl.className = 'status-indicator status-online';
-            textEl.textContent = 'Підключено';
-        } else {
-            statusEl.className = 'status-indicator status-offline';
-            textEl.textContent = 'Не підключено';
+    async loadTradingPairs() {
+        try {
+            const response = await fetch('/api/trading-pairs');
+            const result = await response.json();
+            if (result.success && result.pairs) {
+                this.tradingPairs = Object.keys(result.pairs);
+                this.tradingPairsElement.textContent = this.tradingPairs.length;
+                this.updateTradingPairsSelect();
+            }
+        } catch (error) {
+            console.error('Помилка завантаження торгових пар:', error);
         }
     }
 
-    updatePositions(positions) {
-        this.positions = positions;
-        this.activePositionsEl.textContent = positions.length;
+    updateTradingPairsSelect() {
+        const select = this.tradingPairSelect;
+        select.innerHTML = '<option value="">Оберіть пару...</option>';
+        const popularPairs = ['BTC_USDT', 'ETH_USDT', 'ADA_USDT', 'DOT_USDT', 'LINK_USDT'];
+        popularPairs.forEach(pair => {
+            if (this.tradingPairs.includes(pair)) {
+                const option = document.createElement('option');
+                option.value = pair;
+                option.textContent = pair.replace('_', '/');
+                select.appendChild(option);
+            }
+        });
+    }
 
-        if (positions.length === 0) {
-            this.positionsTable.innerHTML = `
+    updateOrdersTable() {
+        if (this.orders.length === 0) {
+            this.ordersTableBody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="text-center text-muted">Немає активних позицій</td>
+                    <td colspan="7" class="text-center text-muted">
+                        <i class="fas fa-info-circle"></i> Немає активних ордерів
+                    </td>
                 </tr>
             `;
             return;
         }
-
-        this.positionsTable.innerHTML = positions.map(pos => {
-            const pnl = pos.unrealizedPnl || 0;
-            const pnlClass = pnl >= 0 ? 'profit' : 'loss';
-            const currentPrice = this.prices[pos.symbol] || pos.entryPrice;
-
-            return `
-                <tr>
-                    <td><span class="badge bg-primary">${pos.exchange.toUpperCase()}</span></td>
-                    <td>${pos.symbol}</td>
-                    <td>
-                        <span class="badge bg-${pos.side === 'LONG' ? 'success' : 'danger'}">
-                            ${pos.side}
-                        </span>
-                    </td>
-                    <td>${pos.size}</td>
-                    <td>$${pos.entryPrice.toFixed(4)}</td>
-                    <td>$${currentPrice.toFixed(4)}</td>
-                    <td class="${pnlClass}">$${pnl.toFixed(2)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-danger" onclick="dashboard.closePosition('${pos.exchange}', '${pos.symbol}')">
-                            Закрити
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        this.ordersTableBody.innerHTML = this.orders.map(order => `
+            <tr>
+                <td>${order.id}</td>
+                <td><strong>${order.market}</strong></td>
+                <td>
+                    <span class="badge bg-${order.side === 'buy' ? 'success' : 'danger'}">
+                        ${order.side.toUpperCase()}
+                    </span>
+                </td>
+                <td>${order.amount}</td>
+                <td>${parseFloat(order.price).toFixed(4)}</td>
+                <td>
+                    <span class="badge bg-warning">${order.status}</span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger"
+                            onclick="dashboard.cancelOrder('${order.market}', '${order.id}')">
+                        <i class="fas fa-times"></i> Скасувати
+                    </button>
+                </td>
+            </tr>
+        `).join('');
     }
 
-    async closePosition(exchange, symbol) {
-        try {
-            const response = await fetch('/api/close-position', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ exchange, symbol })
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                this.addLog(`🔒 Позиція закрита: ${exchange} ${symbol}`, 'success');
-            } else {
-                this.addLog(`❌ Помилка закриття позиції: ${result.error}`, 'error');
-            }
-        } catch (error) {
-            this.addLog(`❌ Помилка: ${error.message}`, 'error');
-        }
-    }
-
-    updatePrices() {
-        // Симуляція оновлення цін (в реальному проекті використовувати WebSocket)
-        const symbols = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT'];
-
-        this.pricesContainer.innerHTML = symbols.map(symbol => {
-            const price = this.prices[symbol] || (Math.random() * 50000 + 20000);
-            const change = (Math.random() - 0.5) * 10;
-            const changeClass = change >= 0 ? 'profit' : 'loss';
-
-            this.prices[symbol] = price;
-
-            return `
-                <div class="col-md-4 mb-3">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h5>${symbol}</h5>
-                            <h3>$${price.toFixed(2)}</h3>
-                            <span class="${changeClass}">
-                                ${change >= 0 ? '+' : ''}${change.toFixed(2)}%
-                            </span>
-                        </div>
+    updateBalanceTab() {
+        if (this.balance.error) {
+            this.balanceContainer.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Помилка завантаження балансу: ${this.balance.error}
                     </div>
                 </div>
             `;
-        }).join('');
+            return;
+        }
+        if (Array.isArray(this.balance)) {
+            this.balanceContainer.innerHTML = this.balance
+                .filter(asset => parseFloat(asset.main_balance) > 0)
+                .map(asset => `
+                    <div class="col-md-4 mb-3">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0">${asset.ticker}</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center">
+                                    <small class="text-muted">Основний</small>
+                                    <div class="h5 text-success">
+                                        ${parseFloat(asset.main_balance).toFixed(8)}
+                                    </div>
+                                </div>
+                                <div class="text-center mt-2">
+                                    <small class="text-muted">Заморожено</small>
+                                    <div class="h6">
+                                        ${parseFloat(asset.reserve_balance).toFixed(8)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+        }
+    }
+
+    async handleTradeSubmit(e) {
+        e.preventDefault();
+        const formData = new FormData(this.tradingForm);
+        const orderData = {
+            market: document.getElementById('tradingPair').value,
+            side: document.querySelector('input[name="orderSide"]:checked').value,
+            amount: document.getElementById('orderAmount').value,
+            type: document.getElementById('orderType').value
+        };
+        if (orderData.type === 'limit') {
+            orderData.price = document.getElementById('orderPrice').value;
+        }
+        try {
+            this.addLog(`📝 Створення ордера: ${orderData.side} ${orderData.amount} ${orderData.market}`, 'info');
+            const response = await fetch('/api/order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData)
+            });
+            const result = await response.json();
+            if (result.success) {
+                this.addLog('✅ Ордер створено успішно', 'success');
+                this.showToast('Ордер створено', 'success');
+                this.tradingForm.reset();
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            this.addLog(`⚠ Помилка створення ордера: ${error.message}`, 'error');
+            this.showToast('Помилка створення ордера', 'error');
+        }
+    }
+
+    async cancelOrder(market, orderId) {
+        if (!confirm(`Скасувати ордер ${orderId}?`)) return;
+        try {
+            const response = await fetch('/api/cancel-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ market, orderId })
+            });
+            const result = await response.json();
+            if (result.success) {
+                this.addLog(`✅ Ордер скасовано: ${orderId}`, 'success');
+                this.showToast('Ордер скасовано', 'success');
+            } else {
+                throw new Error(result.error);
+            }
+        } catch (error) {
+            this.addLog(`⚠ Помилка скасування ордера: ${error.message}`, 'error');
+            this.showToast('Помилка скасування ордера', 'error');
+        }
     }
 
     addLog(message, type = 'info') {
         const timestamp = new Date().toLocaleTimeString();
-        const logClass = {
-            'success': 'text-success',
-            'error': 'text-danger',
-            'warning': 'text-warning',
-            'info': 'text-info'
-        }[type] || 'text-muted';
-
+        const logColors = {
+            success: '#00ff00',
+            error: '#ff4444',
+            warning: '#ffaa00',
+            info: '#00aaff'
+        };
         const logEntry = document.createElement('div');
-        logEntry.className = logClass;
-        logEntry.innerHTML = `[${timestamp}] ${message}`;
-
+        logEntry.style.color = logColors[type] || '#00ff00';
+        logEntry.innerHTML = `<span style="color: #888;">[${timestamp}]</span> ${message}`;
         this.logsContainer.appendChild(logEntry);
-        this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
-
-        // Обмеження кількості логів
+        if (this.autoScrollLogs) {
+            this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
+        }
         const logs = this.logsContainer.children;
-        if (logs.length > 100) {
+        if (logs.length > 200) {
             this.logsContainer.removeChild(logs[0]);
         }
     }
 
-    clearLogs() {
-        this.logsContainer.innerHTML = '<div class="text-muted">Логи очищено...</div>';
+    showToast(message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        const toastId = 'toast-' + Date.now();
+        const bgColor = {
+            success: 'bg-success',
+            error: 'bg-danger',
+            warning: 'bg-warning',
+            info: 'bg-info'
+        }[type] || 'bg-info';
+        const toastHtml = `
+            <div class="toast ${bgColor} text-white" id="${toastId}" role="alert">
+                <div class="toast-header ${bgColor} text-white border-0">
+                    <i class="fas fa-robot me-2"></i>
+                    <strong class="me-auto">WhiteBit Бот</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        `;
+        toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+        const toastElement = document.getElementById(toastId);
+        const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+        toast.show();
+        toastElement.addEventListener('hidden.bs.toast', () => {
+            toastElement.remove();
+        });
     }
 
-    startUpdating() {
-        // Оновлення кожні 5 секунд
-        setInterval(() => {
-            this.updateStatus();
-            this.updateBalances();
-            this.updatePrices();
-        }, 5000);
+    clearLogs() {
+        this.logsContainer.innerHTML = `
+            <div class="text-muted">
+                <i class="fas fa-info-circle"></i> Логи очищено...
+            </div>
+        `;
+    }
 
-        // Початкове оновлення
-        this.updateStatus();
-        this.updateBalances();
-        this.updatePrices();
+    toggleAutoScroll() {
+        this.autoScrollLogs = !this.autoScrollLogs;
+        const btn = document.getElementById('toggleAutoScroll');
+        if (this.autoScrollLogs) {
+            btn.innerHTML = '<i class="fas fa-arrow-down"></i> Авто-скрол';
+            btn.classList.remove('btn-outline-primary');
+            btn.classList.add('btn-primary');
+        } else {
+            btn.innerHTML = '<i class="fas fa-pause"></i> Скрол вимк';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline-primary');
+        }
+    }
+
+    updateTime() {
+        setInterval(() => {
+            this.currentTime.textContent = new Date().toLocaleString('uk-UA');
+        }, 1000);
+    }
+
+    async refreshAll() {
+        this.addLog('🔄 Оновлення всіх даних...', 'info');
+        await Promise.all([
+            this.updateStatus(),
+            this.updateBalance(),
+            this.updateActiveOrders(),
+            this.loadTradingPairs()
+        ]);
+        this.addLog('✅ Дані оновлено', 'success');
+    }
+
+    startUpdateLoop() {
+        setInterval(async () => {
+            await this.updateStatus();
+            await this.updateBalance();
+            await this.updateActiveOrders();
+        }, 10000);
+        this.refreshAll();
     }
 }
 
-// Ініціалізація дашборду
-const dashboard = new Dashboard();
+// Ініціалізація панелі
+const dashboard = new WhiteBitTradingDashboard();

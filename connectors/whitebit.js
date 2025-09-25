@@ -1,4 +1,4 @@
-// connectors/whitebit.js
+// connectors/whitebit.js - Виправлена версія з nonce
 const axios = require('axios');
 const crypto = require('crypto');
 const WebSocket = require('ws');
@@ -12,16 +12,23 @@ class WhiteBitConnector {
         this.ws = null;
         this.wsId = 1;
         this.subscriptions = new Map();
+
+        // Для генерації nonce
+        this.lastNonce = Date.now();
     }
 
-    // Генерація підпису для приватних API запитів
-    generateSignature(data, timestamp, path) {
-        const payload = `/api/v4${path}${JSON.stringify(data)}${timestamp}`;
-        return crypto
-            .createHmac('sha512', this.config.secretKey)
-            .update(payload)
-            .digest('hex');
+    // Генерація унікального nonce
+    generateNonce() {
+        const now = Date.now(); // Мілісекунди
+        // Якщо поточний час дорівнює попередньому, збільшуємо на 1
+        if (now <= this.lastNonce) {
+            this.lastNonce = this.lastNonce + 1;
+        } else {
+            this.lastNonce = now;
+        }
+        return this.lastNonce;
     }
+
 
     // Загальний метод для API запитів
     async makeRequest(method, endpoint, params = {}, isPrivate = false) {
@@ -30,43 +37,143 @@ class WhiteBitConnector {
             const config = {
                 method,
                 url,
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers:{}
+
             };
 
             if (isPrivate) {
-                const timestamp = Math.floor(Date.now() / 1000);
-                const signature = this.generateSignature(params, timestamp, endpoint);
+                // Додаємо обов'язкові поля для приватних методів
+                const nonce = this.generateNonce();
+                const requestBody = {
+                    request: `/api/v4${endpoint}`, // ОБОВ'ЯЗКОВЕ поле request
+                    nonce: nonce,                  // ОБОВ'ЯЗКОВЕ поле nonce (в мілісекундах)
+                    nonceWindow: true,             // Рекомендоване поле
+                    ...params                      // Додаткові параметри
+                };
 
+                // ВИПРАВЛЕНО: timestamp в мілісекундах
+                const timestamp = Date.now(); // Мілісекунди замість секунд!
+
+                // Генеруємо payload та підпис
+                const payload = Buffer.from(JSON.stringify(requestBody)).toString('base64');
+
+                const hash = crypto.createHmac("sha512", this.config.secretKey);
+                const signature = hash.update(payload).digest("hex");
+
+
+                // ВИПРАВЛЕНО: Додаємо всі обов'язкові заголовки
+                config.headers['Content-Type'] =  "application/json";
                 config.headers['X-TXC-APIKEY'] = this.config.apiKey;
-                config.headers['X-TXC-PAYLOAD'] = Buffer.from(JSON.stringify(params)).toString('base64');
+                config.headers['X-TXC-PAYLOAD'] = payload;  // ОБОВ'ЯЗКОВИЙ заголовок!
                 config.headers['X-TXC-SIGNATURE'] = signature;
-                config.headers['X-TXC-TIMESTAMP'] = timestamp;
-            }
 
-            if (method === 'GET') {
-                config.params = params;
+                config.data = requestBody;
+
+                // Детальний дебаг приватних запитів
+                console.log(`\n📋 === WHITEBIT API DEBUG ===`);
+                console.log(`🔗 URL: ${url}`);
+                console.log(`📝 Method: ${method}`);
+                console.log(`🔑 Endpoint: ${endpoint}`);
+                console.log(`⏰ Timestamp (ms): ${timestamp}`);
+                console.log(`🎲 Nonce (ms): ${nonce}`);
+                console.log(`📦 Request Body:`, JSON.stringify(requestBody, null, 2));
+                console.log(`🔐 Payload (base64):`, payload);
+                console.log(`🔏 Signature:`, signature);
+                console.log(`📋 ========================\n`);
+
             } else {
-                config.data = params;
+                if (method === 'GET') {
+                    config.params = params;
+                    console.log(`🌐 Публічний GET запит: ${url} з параметрами:`, params);
+                } else {
+                    config.data = params;
+                    console.log(`🌐 Публічний POST запит: ${url} з даними:`, params);
+                }
             }
 
             const response = await axios(config);
+
+            // Дебаг відповіді
+            if (isPrivate) {
+                console.log(`✅ Успішна відповідь від WhiteBit API:`, {
+                    status: response.status,
+                    dataKeys: Object.keys(response.data || {}),
+                    dataSize: JSON.stringify(response.data).length,
+                    responseType: typeof response.data
+                });
+
+                // Показуємо частину відповіді для дебагу
+                if (response.data) {
+                    console.log(`📋 Перші 200 символів відповіді:`, JSON.stringify(response.data).substring(0, 200) + '...');
+                }
+            }
+
             return response.data;
         } catch (error) {
-            throw new Error(`WhiteBit API помилка: ${error.response?.data?.message || error.message}`);
+            // Детальний дебаг помилок
+            console.log(`\n❌ === WHITEBIT API ERROR ===`);
+
+            console.error('🚫 Error Type:', error.constructor.name);
+            console.error('🚫 Error Message:', error.message);
+
+
+            console.log(`🔗 URL: ${url}`);
+            console.log(`📝 Method: ${method}`);
+            console.log(`🔑 Endpoint: ${endpoint}`);
+
+            if (error.response) {
+                console.log(`📊 HTTP Status: ${error.response.status}`);
+                console.log(`📋 Response Headers:`, error.response.headers);
+                console.log(`📦 Response Data:`, JSON.stringify(error.response.data, null, 2));
+
+                // Специфічні помилки WhiteBit
+                if (error.response.data) {
+                    const errorData = error.response.data;
+                    if (errorData.message) {
+                        console.log(`🚫 Error Message: ${errorData.message}`);
+                    }
+                    if (errorData.errors) {
+                        console.log(`🚫 Detailed Errors:`, errorData.errors);
+                    }
+                    if (errorData.code) {
+                        console.log(`🚫 Error Code: ${errorData.code}`);
+                    }
+                }
+            } else if (error.request) {
+                console.log(`🚫 No Response Received:`, error.request);
+            } else {
+                console.log(`🚫 Request Setup Error: ${error.message}`);
+            }
+            console.log(`❌ ========================\n`);
+
+            const errorMessage = error.response?.data?.message || error.response?.data?.errors || error.message;
+            throw new Error(`WhiteBit API помилка: ${errorMessage}`);
         }
     }
 
     // Тестове підключення
     async testConnection() {
         try {
+            // Перевірка наявності API ключів
+            if (!this.config.apiKey || !this.config.secretKey) {
+                throw new Error('API ключі не налаштовані. Перевірте .env файл');
+            }
+
+            console.log('🧪 Тестування публічного API...');
             await this.makeRequest('GET', '/public/ping');
             this.connected = true;
-            console.log('✅ WhiteBit підключення встановлено');
+            console.log('✅ Публічне API працює');
+
+            // Додаткова перевірка приватного API
+            console.log('🧪 Тестування приватного API...');
+            await this.getSpotBalance();
+            console.log('✅ Приватне API працює');
+
+            console.log('✅ WhiteBit підключення встановлено повністю');
             return true;
         } catch (error) {
             this.connected = false;
+            console.error('❌ Помилка підключення до WhiteBit:', error.message);
             throw new Error(`Помилка підключення до WhiteBit: ${error.message}`);
         }
     }
@@ -77,7 +184,7 @@ class WhiteBitConnector {
 
     // ===== ПУБЛІЧНІ МЕТОДИ =====
 
-    // Отримання інформації про торгові пари
+    // Отримання торгових пар
     async getTradingPairs() {
         try {
             const response = await this.makeRequest('GET', '/public/markets');
@@ -129,7 +236,7 @@ class WhiteBitConnector {
     // Отримання балансу спот акаунта
     async getSpotBalance() {
         try {
-            const response = await this.makeRequest('POST', '/trade-account/balance', {}, true);
+            const response = await this.makeRequest('POST', '/trade-account/balance', {"ticker":"BTC"}, true);
             return response;
         } catch (error) {
             throw new Error(`Помилка отримання балансу: ${error.message}`);
@@ -199,7 +306,7 @@ class WhiteBitConnector {
         try {
             const response = await this.makeRequest('POST', '/order/cancel', {
                 market,
-                orderId
+                orderId: parseInt(orderId)
             }, true);
 
             console.log(`❌ WhiteBit ордер скасовано: ${orderId}`);
@@ -267,7 +374,7 @@ class WhiteBitConnector {
         this.ws = new WebSocket(this.wsURL);
 
         this.ws.on('open', () => {
-            console.log('📡 WhiteBit WebSocket підключено');
+            console.log('🔗 WhiteBit WebSocket підключено');
             this.connected = true;
         });
 
@@ -281,7 +388,7 @@ class WhiteBitConnector {
         });
 
         this.ws.on('close', () => {
-            console.log('📡 WhiteBit WebSocket закрито');
+            console.log('🔗 WhiteBit WebSocket закрито');
             this.connected = false;
             // Автоматичне перепідключення через 5 секунд
             setTimeout(() => {
@@ -428,7 +535,7 @@ class WhiteBitConnector {
             }
         }
         this.subscriptions.clear();
-        console.log('📡 WhiteBit всі підписки скасовано');
+        console.log('🔗 WhiteBit всі підписки скасовано');
     }
 
     // Закриття з'єднання
@@ -439,8 +546,11 @@ class WhiteBitConnector {
             this.ws = null;
         }
         this.connected = false;
-        console.log('📡 WhiteBit з\'єднання закрито');
+        console.log('🔗 WhiteBit з\'єднання закрито');
     }
 }
 
 module.exports = WhiteBitConnector;
+
+
+

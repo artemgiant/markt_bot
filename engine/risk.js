@@ -1,141 +1,163 @@
-// engine/risk.js
+// engine/risk.js - Простий менеджер ризиків
 class RiskManager {
     constructor(config) {
         this.maxPositionSize = config.maxPositionSize || 1000;
         this.riskPercentage = config.riskPercentage || 2;
-        this.maxDrawdown = config.maxDrawdown || 10;
-        this.maxDailyLoss = config.maxDailyLoss || 5;
+        this.maxDailyLoss = config.maxDailyLoss || 5000;
+        this.dailyLoss = 0;
+        this.totalTrades = 0;
+        this.successfulTrades = 0;
 
-        this.dailyPnL = 0;
-        this.totalPnL = 0;
-        this.openPositions = new Map();
-
-        // Скидання щоденної статистики
+        // Скидання щоденної статистики о півночі
         this.resetDailyStats();
     }
 
+    // Перевірка чи можемо розмістити ордер
+    canPlaceOrder(orderAmount, currentBalance) {
+        // Перевірка максимального розміру позиції
+        if (orderAmount > this.maxPositionSize) {
+            console.log(`⚠️ Розмір ордера (${orderAmount}) перевищує максимум (${this.maxPositionSize})`);
+            return false;
+        }
+
+        // Перевірка достатності балансу
+        if (orderAmount > currentBalance * 0.95) {
+            console.log(`⚠️ Недостатньо коштів для ордера (${orderAmount})`);
+            return false;
+        }
+
+        // Перевірка щоденних збитків
+        if (this.dailyLoss >= this.maxDailyLoss) {
+            console.log(`⚠️ Досягнуто максимум щоденних збитків (${this.maxDailyLoss})`);
+            return false;
+        }
+
+        return true;
+    }
+
+    // Розрахунок розміру позиції на основі ризику
+    calculatePositionSize(balance, entryPrice, stopLoss) {
+        if (!stopLoss || stopLoss <= 0) {
+            // Якщо немає стоп-лосса, використовуємо фіксований відсоток від балансу
+            return Math.min(balance * (this.riskPercentage / 100), this.maxPositionSize);
+        }
+
+        const riskAmount = balance * (this.riskPercentage / 100);
+        const priceRisk = Math.abs(entryPrice - stopLoss) / entryPrice;
+        const positionSize = riskAmount / priceRisk;
+
+        return Math.min(positionSize, this.maxPositionSize);
+    }
+
+    // Реєстрація торгівлі
+    registerTrade(profit, loss = 0) {
+        this.totalTrades++;
+
+        if (profit > 0) {
+            this.successfulTrades++;
+            console.log(`✅ Прибуткова торгівля: +${profit.toFixed(2)} USDT`);
+        } else if (loss > 0) {
+            this.dailyLoss += loss;
+            console.log(`❌ Збиткова торгівля: -${loss.toFixed(2)} USDT`);
+        }
+
+        this.logStatistics();
+    }
+
+    // Отримання статистики успішності
+    getSuccessRate() {
+        if (this.totalTrades === 0) return 0;
+        return (this.successfulTrades / this.totalTrades) * 100;
+    }
+
+    // Перевірка чи потрібно зменшити ризик
+    shouldReduceRisk() {
+        const successRate = this.getSuccessRate();
+
+        // Зменшуємо ризик якщо успішність нижче 40%
+        if (this.totalTrades >= 10 && successRate < 40) {
+            return true;
+        }
+
+        // Зменшуємо ризик якщо втратили більше 70% від максимальних щоденних збитків
+        if (this.dailyLoss > this.maxDailyLoss * 0.7) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // Отримання поточних налаштувань ризику
+    getRiskSettings() {
+        return {
+            maxPositionSize: this.maxPositionSize,
+            riskPercentage: this.riskPercentage,
+            maxDailyLoss: this.maxDailyLoss,
+            dailyLoss: this.dailyLoss,
+            remainingDailyRisk: Math.max(0, this.maxDailyLoss - this.dailyLoss),
+            successRate: this.getSuccessRate(),
+            totalTrades: this.totalTrades,
+            shouldReduceRisk: this.shouldReduceRisk()
+        };
+    }
+
+    // Оновлення налаштувань ризику
+    updateRiskSettings(newSettings) {
+        if (newSettings.maxPositionSize) {
+            this.maxPositionSize = newSettings.maxPositionSize;
+        }
+        if (newSettings.riskPercentage) {
+            this.riskPercentage = Math.min(newSettings.riskPercentage, 10); // Максимум 10%
+        }
+        if (newSettings.maxDailyLoss) {
+            this.maxDailyLoss = newSettings.maxDailyLoss;
+        }
+
+        console.log('✅ Налаштування ризику оновлено:', this.getRiskSettings());
+    }
+
+    // Логування поточної статистики
+    logStatistics() {
+        const stats = this.getRiskSettings();
+        console.log(`📊 Статистика ризиків: Успішність ${stats.successRate.toFixed(1)}%, Торгівель: ${stats.totalTrades}, Залишок лімітів: ${stats.remainingDailyRisk.toFixed(2)} USDT`);
+    }
+
+    // Скидання щоденної статистики
     resetDailyStats() {
         const now = new Date();
         const tomorrow = new Date(now);
         tomorrow.setDate(tomorrow.getDate() + 1);
         tomorrow.setHours(0, 0, 0, 0);
 
-        const timeUntilReset = tomorrow.getTime() - now.getTime();
+        const millisecondsUntilMidnight = tomorrow.getTime() - now.getTime();
 
         setTimeout(() => {
-            this.dailyPnL = 0;
-            console.log('📊 Щоденна статистика PnL скинута');
+            this.dailyLoss = 0;
+            console.log('🔄 Щоденна статистика збитків скинута');
+
+            // Встановлюємо наступний скид
             this.resetDailyStats();
-        }, timeUntilReset);
+        }, millisecondsUntilMidnight);
     }
 
-    checkPositionRisk(symbol, side, requestedQuantity) {
-        // Перевірка щоденних втрат
-        if (this.dailyPnL <= -this.maxDailyLoss) {
-            return {
-                allowed: false,
-                reason: `Досягнуто ліміт щоденних втрат: ${this.maxDailyLoss}%`,
-                adjustedQuantity: 0
-            };
+    // Перевірка на досягнення лімітів
+    checkLimits(orderAmount, currentProfit = 0) {
+        const warnings = [];
+
+        if (orderAmount > this.maxPositionSize * 0.8) {
+            warnings.push('Розмір ордера близький до максимального');
         }
 
-        // Перевірка загального просідання
-        if (this.totalPnL <= -this.maxDrawdown) {
-            return {
-                allowed: false,
-                reason: `Досягнуто максимальне просідання: ${this.maxDrawdown}%`,
-                adjustedQuantity: 0
-            };
+        if (this.dailyLoss > this.maxDailyLoss * 0.8) {
+            warnings.push('Щоденні збитки близькі до ліміту');
         }
 
-        // Перевірка розміру позиції
-        const existingPosition = this.openPositions.get(symbol);
-        const currentSize = existingPosition ? existingPosition.size : 0;
-        const newTotalSize = currentSize + requestedQuantity;
-
-        if (newTotalSize > this.maxPositionSize) {
-            const allowedQuantity = Math.max(0, this.maxPositionSize - currentSize);
-
-            if (allowedQuantity === 0) {
-                return {
-                    allowed: false,
-                    reason: `Досягнуто максимальний розмір позиції для ${symbol}`,
-                    adjustedQuantity: 0
-                };
-            }
-
-            return {
-                allowed: true,
-                reason: `Розмір позиції скоригований з ${requestedQuantity} до ${allowedQuantity}`,
-                adjustedQuantity: allowedQuantity
-            };
+        const successRate = this.getSuccessRate();
+        if (this.totalTrades >= 5 && successRate < 50) {
+            warnings.push(`Низька успішність торгівлі: ${successRate.toFixed(1)}%`);
         }
 
-        // Розрахунок оптимального розміру позиції на основі ризику
-        const riskAdjustedQuantity = this.calculatePositionSize(requestedQuantity);
-
-        return {
-            allowed: true,
-            reason: 'Позиція дозволена',
-            adjustedQuantity: Math.min(requestedQuantity, riskAdjustedQuantity)
-        };
-    }
-
-    calculatePositionSize(requestedQuantity) {
-        // Розрахунок розміру позиції на основі відсотка ризику
-        const accountBalance = 10000; // Приклад балансу, в реальності отримувати з біржі
-        const riskAmount = accountBalance * (this.riskPercentage / 100);
-
-        // Спрощений розрахунок - в реальності враховувати волатильність
-        const maxQuantity = riskAmount / 100; // Приклад розрахунку
-
-        return Math.min(requestedQuantity, maxQuantity);
-    }
-
-    updatePosition(symbol, quantity, pnl) {
-        this.openPositions.set(symbol, {
-            size: quantity,
-            pnl: pnl
-        });
-
-        this.updatePnL(pnl);
-    }
-
-    closePosition(symbol) {
-        const position = this.openPositions.get(symbol);
-        if (position) {
-            this.updatePnL(position.pnl);
-            this.openPositions.delete(symbol);
-        }
-    }
-
-    updatePnL(pnl) {
-        this.dailyPnL += pnl;
-        this.totalPnL += pnl;
-
-        console.log(`💰 PnL оновлено: Щоденний: ${this.dailyPnL.toFixed(2)}%, Загальний: ${this.totalPnL.toFixed(2)}%`);
-    }
-
-    getExposure() {
-        let totalExposure = 0;
-        for (const position of this.openPositions.values()) {
-            totalExposure += position.size;
-        }
-        return totalExposure;
-    }
-
-    getRiskMetrics() {
-        return {
-            dailyPnL: this.dailyPnL,
-            totalPnL: this.totalPnL,
-            openPositions: this.openPositions.size,
-            totalExposure: this.getExposure(),
-            riskUtilization: (this.getExposure() / this.maxPositionSize) * 100
-        };
-    }
-
-    isTradeAllowed() {
-        return this.dailyPnL > -this.maxDailyLoss && this.totalPnL > -this.maxDrawdown;
+        return warnings;
     }
 }
 
