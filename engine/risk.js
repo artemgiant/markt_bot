@@ -131,13 +131,13 @@ class RiskManager {
 
         const millisecondsUntilMidnight = tomorrow.getTime() - now.getTime();
 
-        setTimeout(() => {
-            this.dailyLoss = 0;
-            console.log('🔄 Щоденна статистика збитків скинута');
-
-            // Встановлюємо наступний скид
-            this.resetDailyStats();
-        }, millisecondsUntilMidnight);
+        // setTimeout(() => {
+        //     this.dailyLoss = 0;
+        //     console.log('🔄 Щоденна статистика збитків скинута');
+        //
+        //     // Встановлюємо наступний скид
+        //     this.resetDailyStats();
+        // }, millisecondsUntilMidnight);
     }
 
     // Перевірка на досягнення лімітів

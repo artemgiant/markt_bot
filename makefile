@@ -5,6 +5,12 @@ NODE := node
 NPM := npm
 PM2 := pm2
 
+
+
+grok:
+	grok http 8080
+
+
 # Кольори
 GREEN := \033[0;32m
 BLUE := \033[0;34m

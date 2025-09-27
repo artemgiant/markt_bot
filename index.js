@@ -3,10 +3,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { parseArgs } = require('node:util');
+const fs = require('fs');
+const path = require('path');
 
 const WhiteBitConnector = require('./connectors/whitebit');
+const TradingViewConnector = require('./connectors/trading_view');
 const RiskManager = require('./engine/risk');
 const WebSocketManager = require('./websocket/manager');
+const url = require("url");
 
 class CryptoSpotBot {
     constructor(options = {}) {
@@ -23,6 +27,7 @@ class CryptoSpotBot {
         this.isRunning = false;
     }
 
+
     setupConnectors() {
         console.log('🔌 Налаштування WhiteBit коннектора...');
 
@@ -36,6 +41,14 @@ class CryptoSpotBot {
     setupMiddleware() {
         this.app.use(cors());
         this.app.use(express.json());
+
+        // Middleware для обходу ngrok warning page
+        this.app.use((req, res, next) => {
+            // Для обходу ngrok warning page
+            res.setHeader('ngrok-skip-browser-warning', 'true');
+            next();
+        });
+
         this.app.use(express.static('public'));
     }
 
@@ -52,11 +65,13 @@ class CryptoSpotBot {
 
     setupRoutes() {
         // Запуск WhiteBit
+
+
+
         this.app.post('/api/exchanges/whitebit/start', async (req, res) => {
             try {
                 await this.exchanges.whitebit.testConnection();
                 console.log(`✅ WhiteBit запущено через веб-інтерфейс`);
-
                 res.json({
                     success: true,
                     message: 'WhiteBit запущено'
@@ -128,6 +143,54 @@ class CryptoSpotBot {
                 activeOrders: [] // Можна додати логіку для отримання активних ордерів
             });
         });
+
+        this.app.get('/api/trading_view', async (req, res) => {
+            try {
+                // Форматування даних запиту для логування
+                const logData = TradingViewConnector.formatLogEntry(req, {
+                    route: '/api/trading_view',
+                    type: 'trading_view_request'
+                });
+
+                const logsDir = path.join(__dirname, 'logs');
+                if (!fs.existsSync(logsDir)) {
+                    fs.mkdirSync(logsDir, { recursive: true });
+                }
+
+                // Генерація назви файлу з поточною датою
+                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD формат
+                const logFileName = `trading_view_logs_${today}.json`;
+                const logFilePath = path.join(logsDir, logFileName);
+
+                // Запис у файл
+                fs.appendFileSync(logFilePath, logData);
+
+                // Додатково виводимо в консоль
+                console.log(`[${new Date().toISOString()}] TradingView API request logged:`, {
+                    method: req.method,
+                    url: req.url,
+                    query: req.query,
+                    ip: req.ip
+                });
+
+                // Відповідь клієнту
+                res.json({
+                    status: 'success',
+                    message: 'Request logged successfully',
+                    timestamp: new Date().toISOString()
+                });
+
+            } catch (error) {
+                console.error('Error logging request:', error);
+                res.status(500).json({
+                    status: 'error',
+                    message: 'Failed to log request',
+                    error: error.message
+                });
+            }
+        })
+
+
 
         // Баланси
         this.app.get('/api/balances', async (req, res) => {

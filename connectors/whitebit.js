@@ -391,12 +391,12 @@ class WhiteBitConnector {
             console.log('🔗 WhiteBit WebSocket закрито');
             this.connected = false;
             // Автоматичне перепідключення через 5 секунд
-            setTimeout(() => {
-                if (!this.connected) {
-                    console.log('🔄 WhiteBit перепідключення...');
-                    this.connectWebSocket();
-                }
-            }, 5000);
+            // setTimeout(() => {
+            //     if (!this.connected) {
+            //         console.log('🔄 WhiteBit перепідключення...');
+            //         this.connectWebSocket();
+            //     }
+            // }, 5000);
         });
 
         this.ws.on('error', (error) => {

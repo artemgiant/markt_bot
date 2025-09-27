@@ -468,12 +468,12 @@ class WhiteBitTradingDashboard {
     }
 
     startUpdateLoop() {
-        setInterval(async () => {
-            await this.updateStatus();
-            await this.updateBalance();
-            await this.updateActiveOrders();
-        }, 10000);
-        this.refreshAll();
+        // setInterval(async () => {
+        //     await this.updateStatus();
+        //     await this.updateBalance();
+        //     await this.updateActiveOrders();
+        // }, 10000);
+        // this.refreshAll();
     }
 }
 
