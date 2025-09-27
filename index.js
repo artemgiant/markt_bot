@@ -42,6 +42,8 @@ class CryptoSpotBot {
         this.app.use(cors());
         this.app.use(express.json());
 
+        this.app.use('/api/trading_view', express.text({ type: 'text/plain' }));
+
         // Middleware для обходу ngrok warning page
         this.app.use((req, res, next) => {
             // Для обходу ngrok warning page
@@ -144,7 +146,7 @@ class CryptoSpotBot {
             });
         });
 
-        this.app.get('/api/trading_view', async (req, res) => {
+        this.app.all('/api/trading_view', async (req, res) => {
             try {
                 // Форматування даних запиту для логування
                 const logData = TradingViewConnector.formatLogEntry(req, {

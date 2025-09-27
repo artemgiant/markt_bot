@@ -7,8 +7,7 @@ PM2 := pm2
 
 
 
-grok:
-	grok http 8080
+
 
 
 # Кольори
@@ -20,6 +19,14 @@ PURPLE := \033[0;35m
 NC := \033[0m
 
 .DEFAULT_GOAL := help
+
+make-ssh:
+	ssh root@164.92.139.111 && cd /var/www/trading-bot/
+
+node-kill-process:
+	killall node
+kill-process-in-port:
+	kill -9 $(lsof -i:80 -t)
 
 .PHONY: help
 help:
