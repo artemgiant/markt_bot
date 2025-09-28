@@ -1,10 +1,11 @@
 const http = require('http');
 const url = require('url');
+const {static} = require("express");
 
 
 class TradingViewConnector {
 // Функція для парсингу сигналу
-    static  parseSignal(signalString) {
+    static  parseSignalFutures(signalString) {
         const cleanSignal = signalString.trim();
         const parts = cleanSignal.split('_');
 
@@ -45,6 +46,33 @@ class TradingViewConnector {
             originalSignal: cleanSignal
         };
     }
+
+
+
+    static  parseSignalSpot(signalString) {
+
+
+       // signalString = "BUY_BINANCE_DBTC-DUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0";
+
+        const cleanSignal = signalString.trim();
+        const parts = cleanSignal.split('_');
+
+        if (parts.length < 5) {
+            throw new Error(`Невірний формат сигналу. Отримано ${parts.length} частин, очікується мінімум 5`);
+        }
+
+
+        return {
+            action: parts[0].toLocaleLowerCase(),              // sell/bay
+            exchange: parts[1],          // BINANCE
+            coinCode: parts[2].replace('-','_'),          // MYXUSDT
+            botName: parts[3],           // BOT-NAME-ENBIIG
+            timeframe: parts[4],         // 1M
+            hash: parts[5] || '',        // хеш (якщо є)
+            originalSignal: cleanSignal
+        };
+    }
+
 
    static  debugSignal(parsedSignal) {
         try {
@@ -95,6 +123,9 @@ class TradingViewConnector {
     // Функція для форматування лог-записів
     static formatLogEntry(req, additionalData = {}) {
         const timestamp = new Date().toISOString();
+
+         const parsedSignal = this.parseSignalSpot(req.body)
+
         const logEntry = {
             timestamp,
             method: req.method,
@@ -105,7 +136,8 @@ class TradingViewConnector {
             params: req.params,
             ip: req.ip || req.connection.remoteAddress,
             userAgent: req.get('User-Agent'),
-            ...additionalData
+            ...additionalData,
+            parsedSignal
         };
 
         return JSON.stringify(logEntry, null, 2) + ',\n';

@@ -154,10 +154,17 @@ class CryptoSpotBot {
                     type: 'trading_view_request'
                 });
 
+
+
                 const logsDir = path.join(__dirname, 'logs');
                 if (!fs.existsSync(logsDir)) {
                     fs.mkdirSync(logsDir, { recursive: true });
                 }
+                const parsedSignal = TradingViewConnector.parseSignalSpot(req.body)
+
+               const  order = await this.exchanges.whitebit.createMarketOrder(parsedSignal.coinCode, parsedSignal.action, 54);
+
+
 
                 // Генерація назви файлу з поточною датою
                 const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD формат

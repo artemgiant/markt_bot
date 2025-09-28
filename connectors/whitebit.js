@@ -91,6 +91,8 @@ class WhiteBitConnector {
                 }
             }
 
+            console.log("CONFIG: " + JSON.stringify(config));
+
             const response = await axios(config);
 
             // Дебаг відповіді
@@ -117,7 +119,7 @@ class WhiteBitConnector {
             console.error('🚫 Error Message:', error.message);
 
 
-            console.log(`🔗 URL: ${url}`);
+
             console.log(`📝 Method: ${method}`);
             console.log(`🔑 Endpoint: ${endpoint}`);
 
@@ -266,21 +268,29 @@ class WhiteBitConnector {
     // Створення ринкового ордера
     async createMarketOrder(market, side, amount, options = {}) {
         try {
-            const params = {
+            let params = {
                 market,
                 side,
                 amount: amount.toString(),
+                "clientOrderId": "demo_order_".nonce,
                 ...options
             };
+
 
             const response = await this.makeRequest('POST', '/order/market', params, true);
 
             console.log(`📈 WhiteBit ринковий ордер: ${side.toUpperCase()} ${amount} ${market}`);
             return response;
         } catch (error) {
+            console.log('Market order error details:', error.response?.data);
+            throw error;
             throw new Error(`Помилка ринкового ордера: ${error.message}`);
         }
     }
+
+
+
+
 
     // Купівля за ринковою ціною на певну суму
     async buyMarketByQuote(market, quoteAmount, options = {}) {
