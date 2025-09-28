@@ -91,7 +91,6 @@ class WhiteBitConnector {
                 }
             }
 
-            console.log("CONFIG: " + JSON.stringify(config));
 
             const response = await axios(config);
 
@@ -238,7 +237,7 @@ class WhiteBitConnector {
     // Отримання балансу спот акаунта
     async getSpotBalance() {
         try {
-            const response = await this.makeRequest('POST', '/trade-account/balance', {"ticker":"BTC"}, true);
+            const response = await this.makeRequest('POST', '/trade-account/balance', {"ticker":"DBTC"}, true);
             return response;
         } catch (error) {
             throw new Error(`Помилка отримання балансу: ${error.message}`);
@@ -401,12 +400,12 @@ class WhiteBitConnector {
             console.log('🔗 WhiteBit WebSocket закрито');
             this.connected = false;
             // Автоматичне перепідключення через 5 секунд
-            // setTimeout(() => {
-            //     if (!this.connected) {
-            //         console.log('🔄 WhiteBit перепідключення...');
-            //         this.connectWebSocket();
-            //     }
-            // }, 5000);
+            setTimeout(() => {
+                if (!this.connected) {
+                    console.log('🔄 WhiteBit перепідключення...');
+                    this.connectWebSocket();
+                }
+            }, 5000);
         });
 
         this.ws.on('error', (error) => {
