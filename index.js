@@ -153,7 +153,7 @@ class CryptoSpotBot {
                     route: '/api/trading_view',
                     type: 'trading_view_request'
                 });
-
+                const amount = 6
 
 
                 const logsDir = path.join(__dirname, 'logs');
@@ -162,7 +162,7 @@ class CryptoSpotBot {
                 }
                 const parsedSignal = TradingViewConnector.parseSignalSpot(req.body)
 
-               const  order = await this.exchanges.whitebit.createMarketOrder(parsedSignal.coinCode, parsedSignal.action, 54);
+               const  order = await this.exchanges.whitebit.createMarketOrder(parsedSignal.coinCode, parsedSignal.action, amount);
 
 
 
@@ -207,7 +207,7 @@ class CryptoSpotBot {
                 const balances = {};
 
                 try {
-                    balances.whitebit = await this.exchanges.whitebit.getSpotBalance();
+                    balances.whitebit = await this.exchanges.whitebit.getSpotBalance('DBTC');
                 } catch (error) {
                     balances.whitebit = { error: error.message };
                 }

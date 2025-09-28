@@ -235,9 +235,10 @@ class WhiteBitConnector {
     // ===== ПРИВАТНІ МЕТОДИ (ТОРГІВЛЯ) =====
 
     // Отримання балансу спот акаунта
-    async getSpotBalance() {
+    async getSpotBalance(ticker) {
         try {
-            const response = await this.makeRequest('POST', '/trade-account/balance', {"ticker":"DBTC"}, true);
+            const response = await this.makeRequest('POST', '/trade-account/balance', {"ticker":ticker}, true);
+            console.log(response);
             return response;
         } catch (error) {
             throw new Error(`Помилка отримання балансу: ${error.message}`);
@@ -275,6 +276,17 @@ class WhiteBitConnector {
                 ...options
             };
 
+            if(side=='buy'){
+                params.amount = amount.toString();
+            }else if(side=='sell'){
+                const ticker = market.split('_')[0]
+
+                console.log(ticker);
+                const resp =   await this.getSpotBalance(ticker)
+
+                params.amount = parseFloat(resp.available).toFixed(3);
+
+            }
 
             const response = await this.makeRequest('POST', '/order/market', params, true);
 
