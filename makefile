@@ -21,7 +21,7 @@ NC := \033[0m
 .DEFAULT_GOAL := help
 
 make-ssh:
-	ssh root@164.92.139.111 && cd /var/www/trading-bot/
+	ssh root@164.92.139.111 && cd /var/www/trading-bot/ && kill -9 $(lsof -i:80 -t)
 
 node-kill-process:
 	killall node

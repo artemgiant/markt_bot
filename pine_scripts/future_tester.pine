@@ -1,0 +1,67 @@
+//@version=6
+strategy("Тестувальник повідомлень для стратегії", overlay=true, commission_value=0.1, initial_capital=1000)
+
+// --- ВХІДНІ ДАНІ (ВАШІ ЗМІННІ) ---
+// Цей розділ повністю відповідає вашому запиту.
+// Тут ми визначаємо змінні, які будуть містити текст для коментарів до угод.
+var g_messages = "Повідомлення для сповіщень"
+enter_long_input = input.string("ENTER-LONG_BINANCE_MYXUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0", title="Повідомлення для входу в Long", group=g_messages)
+enter_short_input = input.string("ENTER-SHORT_BINANCE_MYXUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0", title="Повідомлення для входу в Short", group=g_messages)
+
+exit_long_input = input.string("EXIT-LONG_BINANCE_MYXUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0", title="Повідомлення для виходу з Long", group=g_messages)
+exit_short_input = input.string("EXIT-SHORT_BINANCE_MYXUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0", title="Повідомлення для виходу з Short", group=g_messages)
+exit_all_input = input.string("EXIT-ALL_BINANCE_MYXUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0", title="Повідомлення для закриття всіх позицій", group=g_messages)
+
+
+// --- ЛОГІКА СТРАТЕГІЇ ---
+// Стратегія починає з поточного бару і виконує 7 послідовних дій для тестування всіх повідомлень
+// Використовуємо змінну для відстеження стартового бару
+
+var int start_bar = na
+var int test_step = 0
+
+// Ініціалізуємо стартовий бар на останньому барі (поточний момент)
+if barstate.islast and na(start_bar)
+    start_bar := bar_index
+    test_step := 1
+
+// Розрахунок відносної позиції від стартового бару
+bars_from_start = na(start_bar) ? na : bar_index - start_bar
+
+// Дія 1: На стартовому барі (поточний момент) відкриваємо довгу позицію (Long)
+if bars_from_start == 0 and test_step == 1
+    strategy.entry("Enter Long", strategy.long, comment=enter_long_input)
+    test_step := 2
+
+// Дія 2: На наступному барі закриваємо довгу позицію
+if bars_from_start == 1 and test_step == 2
+    strategy.close("Enter Long", comment=exit_long_input)
+    test_step := 3
+
+// Дія 3: На другому барі відкриваємо коротку позицію (Short)
+if bars_from_start == 2 and test_step == 3
+    strategy.entry("Enter Short", strategy.short, comment=enter_short_input)
+    test_step := 4
+
+// Дія 4: На третьому барі закриваємо коротку позицію
+if bars_from_start == 3 and test_step == 4
+    strategy.close("Enter Short", comment=exit_short_input)
+    test_step := 5
+
+// Дія 5: На четвертому барі відкриваємо тимчасову довгу позицію для тестування "Exit All"
+if bars_from_start == 4 and test_step == 5
+    strategy.entry("Temp Long for Exit All", strategy.long, comment=enter_long_input)
+    test_step := 6
+
+// Дія 6: На п'ятому барі закриваємо позицію з повідомленням "Exit All"
+if bars_from_start == 5 and test_step == 6
+    strategy.close("Temp Long for Exit All", comment=exit_all_input)
+    test_step := 7
+
+// Дія 7: На шостому барі - фінальна дія (можна додати додаткове тестування)
+if bars_from_start == 6 and test_step == 7
+    // Тут можна додати додаткову логіку або просто завершити тест
+    test_step := 8
+
+// Індикатор поточного кроку тестування (опціонально)
+plotchar(test_step, "Test Step", "", location.top, size=size.small)
