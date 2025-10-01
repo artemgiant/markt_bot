@@ -1,0 +1,208 @@
+<!-- public/monitoring/dashboard.html -->
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketBot - Моніторинг</title>
+    <link rel="stylesheet" href="/monitoring/assets/css/monitoring.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<header class="header">
+    <div class="header-content">
+        <h1>📊 MarketBot Моніторинг</h1>
+        <div class="header-stats">
+            <div class="stat">
+                <span class="stat-label">Статус:</span>
+                <span id="serverStatus" class="status-badge online">● Онлайн</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Оновлено:</span>
+                <span id="lastUpdate">--:--:--</span>
+            </div>
+        </div>
+    </div>
+</header>
+
+<nav class="navigation">
+    <button class="nav-btn active" data-tab="overview">Огляд</button>
+    <button class="nav-btn" data-tab="processes">Процеси</button>
+    <button class="nav-btn" data-tab="logs">Логи</button>
+    <button class="nav-btn" data-tab="performance">Продуктивність</button>
+</nav>
+
+<main class="dashboard">
+    <!-- Вкладка Огляд -->
+    <section id="overview" class="tab-content active">
+        <div class="cards-grid">
+            <!-- Системна інформація -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>💻 Система</h3>
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span>Хост:</span>
+                        <span id="hostname">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span>ОС:</span>
+                        <span id="platform">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Node.js:</span>
+                        <span id="nodeVersion">--</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Час роботи:</span>
+                        <span id="systemUptime">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CPU -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>⚡ CPU</h3>
+                    <span id="cpuUsage" class="metric-big">0%</span>
+                </div>
+                <div class="card-content">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="cpuProgress" class="progress"></div>
+                        </div>
+                    </div>
+                    <canvas id="cpuChart" height="100"></canvas>
+                </div>
+            </div>
+
+            <!-- Пам'ять -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🧠 Пам'ять</h3>
+                    <span id="memoryUsage" class="metric-big">0%</span>
+                </div>
+                <div class="card-content">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="memoryProgress" class="progress"></div>
+                        </div>
+                    </div>
+                    <div class="memory-details">
+                        <span>Використано: <strong id="memoryUsed">0 MB</strong></span>
+                        <span>Всього: <strong id="memoryTotal">0 MB</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Диск -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>💾 Диск</h3>
+                    <span id="diskUsage" class="metric-big">0%</span>
+                </div>
+                <div class="card-content">
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="diskProgress" class="progress"></div>
+                        </div>
+                    </div>
+                    <div class="disk-details">
+                        <span>Використано: <strong id="diskUsed">--</strong></span>
+                        <span>Доступно: <strong id="diskFree">--</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Статистика застосунку -->
+            <div class="card wide">
+                <div class="card-header">
+                    <h3>📈 Статистика MarketBot</h3>
+                </div>
+                <div class="card-content">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-number" id="totalRequests">0</span>
+                            <span class="stat-label">Запити</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="totalErrors">0</span>
+                            <span class="stat-label">Помилки</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="activeConnections">0</span>
+                            <span class="stat-label">Активні з'єднання</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="appUptime">0s</span>
+                            <span class="stat-label">Час роботи застосунку</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Вкладка Процеси -->
+    <section id="processes" class="tab-content">
+        <div class="card wide">
+            <div class="card-header">
+                <h3>🔄 PM2 Процеси</h3>
+                <button id="refreshProcesses" class="btn-primary">🔄 Оновити</button>
+            </div>
+            <div class="card-content">
+                <div id="processesContainer">
+                    <p>Завантаження...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Вкладка Логи -->
+    <section id="logs" class="tab-content">
+        <div class="card wide">
+            <div class="card-header">
+                <h3>📋 Логи</h3>
+                <div class="logs-controls">
+                    <select id="logDateSelect">
+                        <option value="live">Реальний час</option>
+                    </select>
+                    <button id="clearLogs" class="btn-secondary">Очистити</button>
+                    <button id="pauseLogs" class="btn-secondary">Пауза</button>
+                </div>
+            </div>
+            <div class="card-content">
+                <div id="logsContainer">
+                    <div id="logsOutput"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Вкладка Продуктивність -->
+    <section id="performance" class="tab-content">
+        <div class="cards-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h3>📊 CPU Історія</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="cpuHistoryChart" height="200"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>💾 Пам'ять Історія</h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="memoryHistoryChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script src="/monitoring/assets/js/monitoring.js"></script>
+</body>
+</html>
