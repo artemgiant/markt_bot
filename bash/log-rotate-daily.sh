@@ -56,50 +56,7 @@ else
     log_message "Застосунок $APP_NAME не знайдено в PM2"
 fi
 
-# Оновлення ecosystem.config.js з новими шляхами
-log_message "Створення конфігурації з новими шляхами логів"
 
-cat > ecosystem.config.js << EOF
-// ecosystem.config.js - Автоматично оновлено $(date)
-module.exports = {
-  apps: [{
-    name: '$APP_NAME',
-    script: 'index.js',
-    instances: 'max',
-    exec_mode: 'cluster',
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-
-    // Змінні середовища
-    env: {
-      NODE_ENV: 'development',
-      PORT: 80
-    },
-    env_production: {
-      NODE_ENV: 'production',
-      PORT: 80
-    },
-
-    // Логи для дати: $DATE
-    error_file: './logs/PM2/$DATE/error.log',
-    out_file: './logs/PM2/$DATE/out.log',
-    log_file: './logs/PM2/$DATE/combined.log',
-
-    // Налаштування логів
-    time: true,
-    log_date_format: 'HH:mm:ss',
-    merge_logs: true,
-
-    // Додаткові налаштування
-    min_uptime: '10s',
-    max_restarts: 10,
-
-    // Cron перезапуск щодня о 00:01
-    cron_restart: '1 0 * * *'
-  }]
-};
-EOF
 
 # Запуск застосунку з новою конфігурацією
 log_message "Запуск застосунку з новою конфігурацією"

@@ -8,7 +8,18 @@ module.exports = {
     instances: 'max',
     exec_mode: 'cluster',
     autorestart: true,
-    watch: false,
+    watch: true,              // Увімкнути watching
+    ignore_watch: [           // Папки які ігноруються
+      "node_modules",
+      "logs",
+      ".git",
+      "*.log"
+    ],
+    watch_delay: 1000,        // Затримка перед перезапуском (мс)
+    watch_options: {
+      "followSymlinks": false,
+      "usePolling": false
+    },
     max_memory_restart: '1G',
 
     // Змінні середовища
