@@ -202,17 +202,40 @@ class CryptoSpotBot {
 
 
         // Баланси
-        this.app.get('/api/balances', async (req, res) => {
+        this.app.get('/api/balances/:ticker?', async (req, res) => {
             try {
                 const balances = {};
-
+                let filtered = {};
                 try {
-                    balances.whitebit = await this.exchanges.whitebit.getSpotBalance('DBTC');
+                    balances.whitebit = await this.exchanges.whitebit.getSpotBalance( req.params.ticker);
+                    const excludeCoins = ['DUSDT', 'DBTC']; // монети які НЕ виводити
+                    filtered = Object.entries(balances.whitebit)
+                        .filter(([ticker, data]) => {
+
+                            if (excludeCoins.includes(ticker)) {
+                                return false;
+                            }
+                            const available = parseFloat(data.available);
+                            const freeze = parseFloat(data.freeze);
+                            const total = available + freeze;
+                            return total > 0; // повертаємо тільки якщо сума більше 0
+                        })
+                        .map(([ticker, data]) => ({
+                            ticker: ticker,
+                            available: Math.floor(parseFloat(data.available) * 1000) / 1000,
+                            freeze:  Math.floor(parseFloat(data.freeze) * 1000) / 1000
+                        }));
+
+
                 } catch (error) {
                     balances.whitebit = { error: error.message };
                 }
 
+
+                balances.whitebit = filtered
+
                 res.json(balances);
+
             } catch (error) {
                 res.status(500).json({ error: error.message });
             }

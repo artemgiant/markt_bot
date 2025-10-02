@@ -237,8 +237,12 @@ class WhiteBitConnector {
     // Отримання балансу спот акаунта
     async getSpotBalance(ticker) {
         try {
-            const response = await this.makeRequest('POST', '/trade-account/balance', {"ticker":ticker}, true);
-            console.log(response);
+            let params = {}
+            if (ticker) {
+                params =  {"ticker":ticker}
+            }
+            const response = await this.makeRequest('POST', '/trade-account/balance', params, true);
+
             return response;
         } catch (error) {
             throw new Error(`Помилка отримання балансу: ${error.message}`);

@@ -186,11 +186,13 @@ class WhiteBitTradingDashboard {
             const balances = await response.json();
             if (balances.whitebit) {
                 this.balance = balances.whitebit;
+
                 if (!balances.whitebit.error) {
                     let totalBalance = 0;
+
                     if (Array.isArray(balances.whitebit)) {
                         balances.whitebit.forEach(asset => {
-                            totalBalance += parseFloat(asset.main_balance || 0);
+                            totalBalance += parseFloat(asset.available || 0);
                         });
                     }
                     this.whitebitBalance.textContent = `${totalBalance.toFixed(2)}`;
@@ -296,8 +298,11 @@ class WhiteBitTradingDashboard {
         }
         if (Array.isArray(this.balance)) {
             this.balanceContainer.innerHTML = this.balance
-                .filter(asset => parseFloat(asset.main_balance) > 0)
-                .map(asset => `
+
+                .map( function (asset) {
+
+                    console.log(asset);
+                    return  `
                     <div class="col-md-4 mb-3">
                         <div class="card border-success">
                             <div class="card-header bg-success text-white">
@@ -307,19 +312,20 @@ class WhiteBitTradingDashboard {
                                 <div class="text-center">
                                     <small class="text-muted">Основний</small>
                                     <div class="h5 text-success">
-                                        ${parseFloat(asset.main_balance).toFixed(8)}
+                                        ${parseFloat(asset.available).toFixed(8)}
                                     </div>
                                 </div>
                                 <div class="text-center mt-2">
                                     <small class="text-muted">Заморожено</small>
                                     <div class="h6">
-                                        ${parseFloat(asset.reserve_balance).toFixed(8)}
+                                        ${parseFloat(asset.freeze).toFixed(8)}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                `).join('');
+                `; }
+                ).join('');
         }
     }
 
@@ -468,12 +474,12 @@ class WhiteBitTradingDashboard {
     }
 
     startUpdateLoop() {
-        // setInterval(async () => {
-        //     await this.updateStatus();
-        //     await this.updateBalance();
-        //     await this.updateActiveOrders();
-        // }, 10000);
-        // this.refreshAll();
+        setInterval(async () => {
+            // await this.updateStatus();
+          await this.updateBalance();
+            // await this.updateActiveOrders();
+        }, 5000);
+        this.refreshAll();
     }
 }
 
