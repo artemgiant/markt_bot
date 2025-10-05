@@ -38,6 +38,8 @@ class CryptoSpotBot {
             apiKey: process.env.WHITEBIT_API_KEY,
             secretKey: process.env.WHITEBIT_SECRET_KEY
         });
+
+
         console.log('✅ WhiteBit коннектор ініціалізовано');
     }
 

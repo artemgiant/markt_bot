@@ -16,7 +16,7 @@ class MonitoringConnector {
     }
 
     // Системна інформація
-    getSystemInfo() {
+    async getSystemInfo() {  // ✅ Виправлено: прибрано зайві пробіли
         const cpus = os.cpus();
         const totalMem = os.totalmem();
         const freeMem = os.freemem();
@@ -72,17 +72,17 @@ class MonitoringConnector {
 
     // Мережева інформація
     getNetworkInfo() {
-        const interfaces = os.networkInterfaces();
+        const ifaces = os.networkInterfaces();  // ✅ Змінено з interfaces
         const networks = [];
 
-        for (let name in interfaces) {
-            for (let interface of interfaces[name]) {
-                if (interface.family === 'IPv4' && !interface.internal) {
+        for (let name in ifaces) {
+            for (let iface of ifaces[name]) {  // ✅ Змінено з interface
+                if (iface.family === 'IPv4' && !iface.internal) {
                     networks.push({
                         name: name,
-                        address: interface.address,
-                        netmask: interface.netmask,
-                        mac: interface.mac
+                        address: iface.address,
+                        netmask: iface.netmask,
+                        mac: iface.mac
                     });
                 }
             }
@@ -176,12 +176,13 @@ class MonitoringConnector {
 
     // Middleware для підрахунку запитів
     middleware() {
+        const self = this;  // ✅ Зберігаємо контекст
         return (req, res, next) => {
             const startTime = Date.now();
 
             // Збільшуємо лічильник запитів
-            this.metrics.requests++;
-            this.metrics.activeConnections++;
+            self.metrics.requests++;
+            self.metrics.activeConnections++;
 
             // Відстеження відповіді
             const originalSend = res.send;
@@ -190,17 +191,17 @@ class MonitoringConnector {
 
                 // Записуємо статус відповіді
                 const status = res.statusCode;
-                if (!monitoring.metrics.responses[status]) {
-                    monitoring.metrics.responses[status] = 0;
+                if (!self.metrics.responses[status]) {
+                    self.metrics.responses[status] = 0;
                 }
-                monitoring.metrics.responses[status]++;
+                self.metrics.responses[status]++;
 
                 // Записуємо помилки
                 if (status >= 400) {
-                    monitoring.metrics.errors++;
+                    self.metrics.errors++;
                 }
 
-                monitoring.metrics.activeConnections--;
+                self.metrics.activeConnections--;
 
                 // Логуємо запит
                 console.log(`${req.method} ${req.url} - ${status} (${responseTime}ms)`);
