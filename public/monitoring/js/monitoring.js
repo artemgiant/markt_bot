@@ -32,6 +32,24 @@ class MarketBotMonitoring {
         document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     }
 
+    // Ініціалізація графіків (можна розширити пізніше)
+    initializeCharts() {
+        console.log('Charts initialized');
+        // Тут можна додати ініціалізацію Chart.js або інших графіків
+        // Наприклад:
+        // this.cpuChart = new Chart(ctx, {...});
+        // this.memoryChart = new Chart(ctx, {...});
+    }
+
+    // Налаштування потоку логів (можна розширити пізніше)
+    setupLogStream() {
+        console.log('Log stream setup');
+        // Тут можна додати WebSocket або SSE для логів в реальному часі
+        // Наприклад:
+        // this.ws = new WebSocket('ws://localhost:3000/logs');
+        // this.ws.onmessage = (event) => { ... };
+    }
+
     async loadSystemData() {
         try {
             const response = await fetch('/monitoring/api/system');
