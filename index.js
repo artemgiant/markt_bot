@@ -12,6 +12,9 @@ const RiskManager = require('./engine/risk');
 const WebSocketManager = require('./websocket/manager');
 const url = require("url");
 
+const monitoring = require('./connectors/monitoring');
+const monitoringRoutes = require('./routes/monitoring');
+
 class CryptoSpotBot {
     constructor(options = {}) {
         this.app = express();
@@ -35,6 +38,8 @@ class CryptoSpotBot {
             apiKey: process.env.WHITEBIT_API_KEY,
             secretKey: process.env.WHITEBIT_SECRET_KEY
         });
+
+
         console.log('✅ WhiteBit коннектор ініціалізовано');
     }
 
@@ -43,7 +48,12 @@ class CryptoSpotBot {
         this.app.use(express.json());
 
         this.app.use('/api/trading_view', express.text({ type: 'text/plain' }));
+        this.app.use(monitoring.middleware());
+        // Статичні файли для моніторингу
+        this.app.use('/monitoring/assets', express.static(path.join(__dirname, 'public/monitoring')));
 
+// Роути моніторингу
+        this.app.use('/monitoring', monitoringRoutes);
         // Middleware для обходу ngrok warning page
         this.app.use((req, res, next) => {
             // Для обходу ngrok warning page
@@ -52,6 +62,8 @@ class CryptoSpotBot {
         });
 
         this.app.use(express.static('public'));
+
+
     }
 
     setupEngine() {
