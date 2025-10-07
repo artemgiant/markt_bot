@@ -246,11 +246,7 @@
                 <i class="fas fa-wallet"></i> Баланс
             </button>
         </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="trading-tab" data-bs-toggle="tab" data-bs-target="#trading" type="button">
-                <i class="fas fa-chart-bar"></i> Торгівля
-            </button>
-        </li>
+
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button">
                 <i class="fas fa-terminal"></i> Логи
@@ -306,63 +302,7 @@
             </div>
         </div>
 
-        <!-- Торгівля -->
-        <div class="tab-pane fade" id="trading" role="tabpanel">
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5><i class="fas fa-chart-bar"></i> Швидка торгівля</h5>
-                </div>
-                <div class="card-body">
-                    <form id="tradingForm">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Торгова пара</label>
-                                    <select class="form-select" id="tradingPair" required>
-                                        <option value="">Оберіть пару...</option>
-                                        <option value="BTC_USDT">BTC/USDT</option>
-                                        <option value="ETH_USDT">ETH/USDT</option>
-                                        <option value="ADA_USDT">ADA/USDT</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Тип ордера</label>
-                                    <select class="form-select" id="orderType">
-                                        <option value="limit">Лімітний</option>
-                                        <option value="market">Ринковий</option>
-                                    </select>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">Сторона</label>
-                                    <div class="btn-group w-100" role="group">
-                                        <input type="radio" class="btn-check" name="orderSide" id="buySide" value="buy" checked>
-                                        <label class="btn btn-outline-success" for="buySide">Купити</label>
 
-                                        <input type="radio" class="btn-check" name="orderSide" id="sellSide" value="sell">
-                                        <label class="btn btn-outline-danger" for="sellSide">Продати</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Кількість</label>
-                                    <input type="number" class="form-control" id="orderAmount" step="0.00001" required>
-                                </div>
-                                <div class="mb-3" id="priceGroup">
-                                    <label class="form-label">Ціна</label>
-                                    <input type="number" class="form-control" id="orderPrice" step="0.01">
-                                </div>
-                                <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary btn-lg">
-                                        <i class="fas fa-paper-plane"></i> Відправити ордер
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
 
         <!-- Логи -->
         <div class="tab-pane fade" id="logs" role="tabpanel">
