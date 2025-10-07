@@ -1,0 +1,217 @@
+:root {
+    --whitebit-color: #00c851;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.settings-container {
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 0 15px;
+}
+
+.settings-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-header-custom {
+    background: linear-gradient(135deg, #00c851 0%, #007e33 100%);
+    color: white;
+    padding: 20px;
+    border: none;
+}
+
+.trading-mode-selector {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.mode-card {
+    flex: 1;
+    padding: 25px;
+    border: 3px solid #e0e0e0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    background: white;
+}
+
+.mode-card:hover {
+    border-color: var(--whitebit-color);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 20px rgba(0,200,81,0.2);
+}
+
+.mode-card.active {
+    border-color: var(--whitebit-color);
+    background: linear-gradient(135deg, rgba(0,200,81,0.1) 0%, rgba(0,126,51,0.1) 100%);
+    box-shadow: 0 5px 20px rgba(0,200,81,0.3);
+}
+
+.mode-card i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    color: var(--whitebit-color);
+}
+
+.mode-card h4 {
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.mode-card p {
+    color: #666;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.form-label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.input-group-text {
+    background: var(--whitebit-color);
+    color: white;
+    border: none;
+    font-weight: 600;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #00c851 0%, #007e33 100%);
+    border: none;
+    color: white;
+    padding: 12px 40px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.btn-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(0,200,81,0.4);
+}
+
+.risk-indicator {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.risk-level {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: #e0e0e0;
+    position: relative;
+    overflow: hidden;
+}
+
+.risk-level-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.risk-low .risk-level-fill {
+    width: 33%;
+    background: var(--success-color);
+}
+
+.risk-medium .risk-level-fill {
+    width: 66%;
+    background: var(--warning-color);
+}
+
+.risk-high .risk-level-fill {
+    width: 100%;
+    background: var(--danger-color);
+}
+
+.advanced-settings {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--whitebit-color);
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.info-tooltip {
+    cursor: help;
+    color: var(--whitebit-color);
+    margin-left: 5px;
+}
+
+.leverage-warning {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 12px;
+    border-radius: 5px;
+    margin-top: 10px;
+    display: none;
+}
+
+.leverage-warning.show {
+    display: block;
+}

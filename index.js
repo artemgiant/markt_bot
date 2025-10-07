@@ -14,6 +14,7 @@ const url = require("url");
 
 const monitoring = require('./connectors/monitoring');
 const monitoringRoutes = require('./routes/monitoring');
+const settingsRoutes = require('./routes/settings');
 
 class CryptoSpotBot {
     constructor(options = {}) {
@@ -49,11 +50,14 @@ class CryptoSpotBot {
 
         this.app.use('/api/trading_view', express.text({ type: 'text/plain' }));
         this.app.use(monitoring.middleware());
+
         // Статичні файли для моніторингу
         this.app.use('/monitoring/assets', express.static(path.join(__dirname, 'public/monitoring')));
+        this.app.use('/settings/assets', express.static(path.join(__dirname, 'public/settings')));
 
 // Роути моніторингу
         this.app.use('/monitoring', monitoringRoutes);
+        this.app.use('/settings', settingsRoutes);
         // Middleware для обходу ngrok warning page
         this.app.use((req, res, next) => {
             // Для обходу ngrok warning page
