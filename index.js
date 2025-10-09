@@ -15,12 +15,13 @@ const url = require("url");
 const monitoring = require('./connectors/monitoring');
 const monitoringRoutes = require('./routes/monitoring');
 const settingsRoutes = require('./routes/settings');
-
+const database = require('./config/database');
 class CryptoSpotBot {
     constructor(options = {}) {
         this.app = express();
         this.enabledExchanges = ['whitebit']; // Тільки WhiteBit
         this.exchanges = {};
+        this.db = null;
 
         console.log(`🎯 Запуск з біржею: WhiteBit`);
 
@@ -30,7 +31,17 @@ class CryptoSpotBot {
         this.setupRoutes();
         this.isRunning = false;
     }
-
+    async init() {
+        try {
+            // Підключення до БД
+            this.db = await database.connect();
+            console.log('✅ CryptoSpotBot ініціалізовано');
+            return this;
+        } catch (error) {
+            console.error('❌ Помилка ініціалізації бота:', error);
+            throw error;
+        }
+    }
 
     setupConnectors() {
         console.log('🔌 Налаштування WhiteBit коннектора...');
@@ -164,58 +175,293 @@ class CryptoSpotBot {
 
         this.app.all('/api/trading_view', async (req, res) => {
             try {
+                console.log('📊 Отримано запит від TradingView');
+                console.log('Method:', req.method);
+                console.log('Body:', req.body);
+                console.log('Query:', req.query);
+
+
+
+                // Перевірка підключення до БД
+                if (!this.db) {
+                    console.error('❌ Database connection is not initialized');
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Database not available'
+                    });
+                }
+
                 // Форматування даних запиту для логування
                 const logData = TradingViewConnector.formatLogEntry(req, {
                     route: '/api/trading_view',
                     type: 'trading_view_request'
                 });
-                const amount = 6
 
+                // Парсинг сигналу
+                const parsedSignal = TradingViewConnector.parseSignalSpot(req.body);
+                console.log('📈 Парсений сигнал:', parsedSignal);
 
+                // Сума для ордера
+                const amount = 6;
+
+                // Створення ордера на біржі
+                let order = null;
+                let orderError = null;
+
+                try {
+                    order = await this.exchanges.whitebit.createMarketOrder(
+                        parsedSignal.coinCode,
+                        parsedSignal.action,
+                        amount
+                    );
+
+                    console.log('✅ Ордер створено:', order);
+                } catch (orderErr) {
+                    orderError = orderErr.message;
+                    console.error('❌ Помилка створення ордера:', orderErr.message);
+                }
+
+                // 1. ЗБЕРЕЖЕННЯ У ФАЙЛ (старий метод)
                 const logsDir = path.join(__dirname, 'logs');
                 if (!fs.existsSync(logsDir)) {
                     fs.mkdirSync(logsDir, { recursive: true });
                 }
-                const parsedSignal = TradingViewConnector.parseSignalSpot(req.body)
 
-               const  order = await this.exchanges.whitebit.createMarketOrder(parsedSignal.coinCode, parsedSignal.action, amount);
-
-
-
-                // Генерація назви файлу з поточною датою
-                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD формат
+                const today = new Date().toISOString().split('T')[0];
                 const logFileName = `trading_view_logs_${today}.json`;
                 const logFilePath = path.join(logsDir, logFileName);
 
-                // Запис у файл
                 fs.appendFileSync(logFilePath, logData);
+                console.log('✅ Лог записано у файл:', logFileName);
 
-                // Додатково виводимо в консоль
-                console.log(`[${new Date().toISOString()}] TradingView API request logged:`, {
-                    method: req.method,
-                    url: req.url,
-                    query: req.query,
-                    ip: req.ip
-                });
+                // 2. ЗБЕРЕЖЕННЯ В БАЗУ ДАНИХ (новий метод)
+                try {
+                    // Запис основного запиту
+                    const requestLog = await this.db.query(`
+                INSERT INTO system_logs (level, category, message, details, type, created_at)
+                VALUES ($1, $2, $3, $4, $5, NOW())
+                RETURNING id, created_at
+            `, [
+                        'info',
+                        'trading_view',
+                        `TradingView ${parsedSignal.action} signal for ${parsedSignal.coinCode}`,
+                        JSON.stringify({
+                            signal: parsedSignal,
+                            order: order,
+                            orderError: orderError,
+                            amount: amount,
+                            request: {
+                                method: req.method,
+                                url: req.url,
+                                body: req.body,
+                                query: req.query,
+                                ip: req.ip,
+                                headers: {
+                                    'content-type': req.headers['content-type'],
+                                    'user-agent': req.headers['user-agent']
+                                }
+                            },
+                            timestamp: new Date().toISOString()
+                        }),
+                        'trading_view_request'
+                    ]);
+
+                    console.log('✅ Запис успішно збережено в БД');
+                    console.log('📝 ID запису:', requestLog.rows[0].id);
+
+                    // Окремий запис торгового сигналу
+                    await this.db.query(`
+                INSERT INTO system_logs (level, category, message, details, type, created_at)
+                VALUES ($1, $2, $3, $4, $5, NOW())
+            `, [
+                        orderError ? 'error' : 'info',
+                        'trading_signal',
+                        `${parsedSignal.action} ${parsedSignal.coinCode} - ${order ? 'Success' : 'Failed'}`,
+                        JSON.stringify({
+                            signal: parsedSignal,
+                            order: order,
+                            error: orderError,
+                            amount: amount,
+                            success: !!order
+                        }),
+                        'trading_signal'
+                    ]);
+
+                    console.log('✅ Торговий сигнал збережено в БД');
+
+                } catch (dbError) {
+                    console.error('❌ Помилка збереження в БД:', dbError);
+                    // Не перериваємо виконання, якщо БД не працює
+                }
+
 
                 // Відповідь клієнту
                 res.json({
+                    success: true,
                     status: 'success',
-                    message: 'Request logged successfully',
-                    timestamp: new Date().toISOString()
+                    message: order ? 'Order created and logged successfully' : 'Signal received but order failed',
+                    timestamp: new Date().toISOString(),
+                    data: {
+                        signal: parsedSignal,
+                        order: order,
+                        error: orderError,
+                        logged: {
+                            file: true,
+                            database: true
+                        }
+                    }
                 });
 
             } catch (error) {
-                console.error('Error logging request:', error);
+                console.error('❌ Критична помилка обробки запиту:', error);
+                console.error('Stack trace:', error.stack);
+
+                // Спроба записати помилку в БД
+                try {
+                    if (this.db) {
+                        await this.db.query(`
+                            INSERT INTO system_logs (level, category, message, details, type, created_at)
+                            VALUES ($1, $2, $3, $4, $5, NOW())
+                        `, [
+                            'error',
+                            'trading_view_error',
+                            'Critical error processing TradingView webhook',
+                            JSON.stringify({
+                                error: error.message,
+                                stack: error.stack,
+                                request: {
+                                    method: req.method,
+                                    url: req.url,
+                                    body: req.body
+                                },
+                                timestamp: new Date().toISOString()
+                            }),
+                            'error'
+                        ]);
+                    }
+                } catch (dbError) {
+                    console.error('❌ Не вдалося записати помилку в БД:', dbError.message);
+                }
+
+                // Також логуємо у файл
+                try {
+                    const logsDir = path.join(__dirname, 'logs');
+                    const today = new Date().toISOString().split('T')[0];
+                    const errorLogPath = path.join(logsDir, `errors_${today}.json`);
+
+                    fs.appendFileSync(errorLogPath, JSON.stringify({
+                        timestamp: new Date().toISOString(),
+                        error: error.message,
+                        stack: error.stack,
+                        request: {
+                            method: req.method,
+                            url: req.url,
+                            body: req.body
+                        }
+                    }) + '\n');
+                } catch (fileError) {
+                    console.error('❌ Не вдалося записати помилку у файл:', fileError.message);
+                }
+
                 res.status(500).json({
+                    success: false,
                     status: 'error',
-                    message: 'Failed to log request',
+                    message: 'Failed to process request',
+                    error: error.message,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        });
+
+        // Метод для перегляду останніх логів з БД
+        this.app.get('/api/logs/recent', async (req, res) => {
+            try {
+                const limit = parseInt(req.query.limit) || 50;
+                const type = req.query.type; // фільтр по типу
+
+                let query = `
+            SELECT id, level, category, message, type, created_at
+            FROM system_logs
+            ${type ? 'WHERE type = $1' : ''}
+            ORDER BY created_at DESC
+            LIMIT ${type ? '$2' : '$1'}
+        `;
+
+                const params = type ? [type, limit] : [limit];
+                const result = await this.db.query(query, params);
+
+                res.json({
+                    success: true,
+                    count: result.rows.length,
+                    logs: result.rows
+                });
+            } catch (error) {
+                console.error('❌ Помилка отримання логів:', error);
+                res.status(500).json({
+                    success: false,
                     error: error.message
                 });
             }
-        })
+        });
 
+// Детальна інформація про один лог
+        this.app.get('/api/logs/:id', async (req, res) => {
+            try {
+                const { id } = req.params;
+                const result = await this.db.query(`
+            SELECT *
+            FROM system_logs
+            WHERE id = $1
+        `, [id]);
 
+                if (result.rows.length === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Log not found'
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    log: result.rows[0]
+                });
+            } catch (error) {
+                console.error('❌ Помилка отримання логу:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+        });
+// Детальна інформація про один лог
+        this.app.get('/api/logs/:id', async (req, res) => {
+            try {
+                const { id } = req.params;
+                const result = await this.db.query(`
+            SELECT *
+            FROM system_logs
+            WHERE id = $1
+        `, [id]);
+
+                if (result.rows.length === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Log not found'
+                    });
+                }
+
+                res.json({
+                    success: true,
+                    log: result.rows[0]
+                });
+            } catch (error) {
+                console.error('❌ Помилка отримання логу:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+        });
 
         // Баланси
         this.app.get('/api/balances/:ticker?', async (req, res) => {
@@ -433,31 +679,77 @@ class CryptoSpotBot {
             console.log(`🌐 Веб-сервер запущено на порту ${port}`);
         });
     }
+    async shutdown() {
+        console.log('🛑 Закриття підключень...');
+
+        try {
+            // Зупиняємо бота якщо він працює
+            if (this.isRunning) {
+                await this.stop();
+            }
+
+            // Відключаємо базу даних
+            if (this.db) {
+                await database.disconnect();
+                console.log('✅ База даних відключена');
+            }
+
+            console.log('✅ Shutdown завершено');
+            process.exit(0);
+        } catch (error) {
+            console.error('❌ Помилка shutdown:', error);
+            process.exit(1);
+        }
+    }
+
 }
 
 // Запуск додатка
+// Запуск додатка
 if (require.main === module) {
-    try {
-        const bot = new CryptoSpotBot();
-        bot.listen();
+    (async () => {
+        try {
+            console.log('🚀 Ініціалізація бота...');
 
-        // Обробка сигналів для graceful shutdown
-        process.on('SIGTERM', async () => {
-            console.log('🔨 SIGTERM отримано, зупинка бота...');
-            await bot.stop();
-            process.exit(0);
-        });
+            // Створюємо бота
+            const bot = new CryptoSpotBot();
 
-        process.on('SIGINT', async () => {
-            console.log('🔨 SIGINT отримано, зупинка бота...');
-            await bot.stop();
-            process.exit(0);
-        });
+            // ВАЖЛИВО: Спочатку ініціалізуємо (підключаємо БД)
+            await bot.init();
 
-    } catch (error) {
-        console.error('⚠ Помилка запуску:', error.message);
-        process.exit(1);
-    }
+            // Потім запускаємо веб-сервер
+            bot.listen();
+
+            // Обробка сигналів для graceful shutdown
+            process.on('SIGTERM', async () => {
+                console.log('🔨 SIGTERM отримано, зупинка бота...');
+                await bot.shutdown();
+            });
+
+            process.on('SIGINT', async () => {
+                console.log('🔨 SIGINT отримано, зупинка бота...');
+                await bot.shutdown();
+            });
+
+            // Обробка некерованих помилок
+            process.on('unhandledRejection', (reason, promise) => {
+                console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+            });
+
+            process.on('uncaughtException', (error) => {
+                console.error('❌ Uncaught Exception:', error);
+                process.exit(1);
+            });
+
+        } catch (error) {
+            console.error('⚠️ Помилка запуску:', error.message);
+            console.error(error.stack);
+            process.exit(1);
+        }
+    })();
 }
+
+module.exports = CryptoSpotBot;
+
 
 module.exports = CryptoSpotBot;

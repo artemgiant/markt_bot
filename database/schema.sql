@@ -270,6 +270,7 @@ COMMENT ON COLUMN trade_history.exit_price IS 'Ціна виходу з пози
 CREATE TABLE system_logs (
                              id SERIAL PRIMARY KEY,
                              level VARCHAR(20) NOT NULL, -- info, warning, error, debug
+                             type VARCHAR(20) NOT NULL, -- info, warning, error, debug
                              category VARCHAR(50), -- api, trading, system, database
                              message TEXT NOT NULL,
                              details JSONB,

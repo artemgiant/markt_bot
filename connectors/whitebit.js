@@ -288,7 +288,7 @@ class WhiteBitConnector {
                 console.log(ticker);
                 const resp =   await this.getSpotBalance(ticker)
 
-                params.amount = parseFloat(resp.available).toFixed(3);
+                params.amount =   Math.trunc(resp.available * 1000) / 1000;
 
             }
 

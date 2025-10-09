@@ -1,0 +1,19 @@
+{
+  "watch": [
+    "*.js",
+    "connectors/**/*.js",
+    "engine/**/*.js",
+    "routes/**/*.js",
+    "websocket/**/*.js",
+    "config/**/*.js"
+  ],
+  "ignore": [
+    "logs/**",
+    "logs/*",
+    "*.log",
+    "node_modules/**",
+    ".git/**"
+  ],
+  "ext": "js,json",
+  "delay": "1000"
+}
