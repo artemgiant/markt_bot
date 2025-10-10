@@ -57,6 +57,13 @@ class Database {
         }
     }
 
+    getConnection() {
+        if (!this.pool) {
+            throw new Error('База даних не підключена! Викличте connect() спочатку.');
+        }
+        return this.pool;
+    }
+
     isConnected() {
         return this.pool !== null;
     }

@@ -132,3 +132,5 @@ dist
 
 /package-lock.json
 /test.sql
+/.idea/dataSources.xml
+/test.txt

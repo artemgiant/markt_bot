@@ -62,6 +62,7 @@ class CryptoSpotBot {
         this.app.use('/api/trading_view', express.text({ type: 'text/plain' }));
         this.app.use(monitoring.middleware());
 
+        this.app.use('/settings', settingsRoutes);
         // Статичні файли для моніторингу
         this.app.use('/monitoring/assets', express.static(path.join(__dirname, 'public/monitoring')));
         this.app.use('/settings/assets', express.static(path.join(__dirname, 'public/settings')));
