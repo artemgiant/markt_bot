@@ -216,6 +216,26 @@ class CryptoSpotBot {
                         amount
                     );
 
+
+                    // order  = {
+                    //     orderId: 1797091915534,
+                    //     clientOrderId: "",
+                    //     market: "SOL_USDT",
+                    //     side: "buy",
+                    //     type: "market",
+                    //     timestamp: 1760194851.123597,
+                    //     dealMoney: "5.99169621",
+                    //     dealStock: "0.0327",
+                    //     amount: "6",
+                    //     left: "0.00830379",
+                    //     dealFee: "0.0000327",
+                    //     ioc: false,
+                    //     status: "PARTIALLY_FILLED",
+                    //     postOnly: false,
+                    //     stp: "no"
+                    // };
+
+
                     console.log('✅ Ордер створено:', order);
                 } catch (orderErr) {
                     orderError = orderErr.message;
@@ -267,8 +287,13 @@ class CryptoSpotBot {
                         'trading_view_request'
                     ]);
 
+
                     console.log('✅ Запис успішно збережено в БД');
                     console.log('📝 ID запису:', requestLog.rows[0].id);
+
+                    const result = await insertTradeHistory(parsedSignal, order,this.db);
+
+                    console.log('Trade saved with ID:', result.id);
 
                     // Окремий запис торгового сигналу
                     await this.db.query(`
@@ -373,6 +398,75 @@ class CryptoSpotBot {
                 });
             }
         });
+
+        async function insertTradeHistory(parsedSignal, order,db) {
+            // Розділення символу на базову та котировану валюту
+            const [baseCurrency, quoteCurrency] = order.market.split('_');
+
+            // Конвертація статусу з WhiteBIT формату в формат БД
+            const statusMap = {
+                'PARTIALLY_FILLED': 'partially_filled',
+                'FILLED': 'filled',
+                'NEW': 'new',
+                'CANCELLED': 'cancelled'
+            };
+
+            // Конвертація timestamp з Unix в PostgreSQL timestamp
+            const executedAt = new Date(order.timestamp * 1000);
+
+            const query = {
+                text: `INSERT INTO public.trade_history (
+            exchange, order_id, client_order_id, symbol, 
+            base_currency, quote_currency, side, order_type, status,
+            amount, deal_stock, deal_money, deal_fee, fee, fee_currency,
+            left_amount, ioc, post_only, stp, api_timestamp,
+            signal_action, signal_bot_name, signal_timeframe, 
+            signal_hash, original_signal, executed_at
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+            $21, $22, $23, $24, $25, $26
+        ) RETURNING id`,
+                values: [
+                    parsedSignal.exchange,
+                    order.orderId.toString(),
+                    order.clientOrderId || null,
+                    order.market,
+                    baseCurrency,
+                    quoteCurrency,
+                    order.side,
+                    order.type,
+                    statusMap[order.status] || order.status.toLowerCase(),
+                    parseFloat(order.amount),
+                    parseFloat(order.dealStock),
+                    parseFloat(order.dealMoney),
+                    parseFloat(order.dealFee),
+                    parseFloat(order.dealFee),
+                    baseCurrency, // fee_currency - зазвичай в базовій валюті для buy
+                    parseFloat(order.left),
+                    order.ioc,
+                    order.postOnly,
+                    order.stp,
+                    order.timestamp,
+                    parsedSignal.action,
+                    parsedSignal.botName,
+                    parsedSignal.timeframe,
+                    parsedSignal.hash,
+                    parsedSignal.originalSignal,
+                    executedAt
+                ]
+            };
+
+            try {
+                const result = await db.query(query);
+                console.log('Trade inserted with ID:', result.rows[0].id);
+                return result.rows[0];
+            } catch (error) {
+                console.error('Error inserting trade:', error);
+                throw error;
+            }
+        }
+
 
         // Метод для перегляду останніх логів з БД
         this.app.get('/api/logs/recent', async (req, res) => {
