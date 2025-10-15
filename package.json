@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon server.js",
-    "dev": "nodemon index.js",
-    "whitebit": "node index.js",
+    "dev": "nodemon server.js",
+    "whitebit": "node server.js",
+    "generate-architecture": "nnode generate-architecture.js",
     "test": "echo 'Тести поки не налаштовані' && exit 0"
   },
   "dependencies": {
