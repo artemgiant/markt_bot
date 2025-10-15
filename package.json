@@ -4,7 +4,7 @@
   "description": "Торговий бот для WhiteBit біржі",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "nodemon server.js",
     "dev": "nodemon index.js",
     "whitebit": "node index.js",
     "test": "echo 'Тести поки не налаштовані' && exit 0"
