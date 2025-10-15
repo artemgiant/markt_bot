@@ -1,0 +1,528 @@
+{
+  "info": {
+    "name": "WhiteBit Futures API",
+    "description": "API для тестування ф'ючерсної торгівлі WhiteBit",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "📊 Інформація",
+      "item": [
+        {
+          "name": "Отримати ф'ючерсні ринки",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/markets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "markets"]
+            }
+          }
+        },
+        {
+          "name": "Отримати баланс колатералу",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/balance",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "balance"]
+            }
+          }
+        },
+        {
+          "name": "Отримати Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Отримати комісії",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/fee",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "fee"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📈 Позиції",
+      "item": [
+        {
+          "name": "Отримати всі позиції",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/positions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "positions"]
+            }
+          }
+        },
+        {
+          "name": "Отримати позиції по ринку",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/positions?market=BTC_PERP",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "positions"],
+              "query": [
+                {
+                  "key": "market",
+                  "value": "BTC_PERP"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Закрити позицію",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"positionId\": 12345\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/positions/close",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "positions", "close"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Ордери",
+      "item": [
+        {
+          "name": "Створити лімітний ордер (Long)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"side\": \"buy\",\n  \"amount\": \"0.001\",\n  \"price\": \"50000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/order/limit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "order", "limit"]
+            }
+          }
+        },
+        {
+          "name": "Створити лімітний ордер (Short)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"side\": \"sell\",\n  \"amount\": \"0.001\",\n  \"price\": \"52000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/order/limit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "order", "limit"]
+            }
+          }
+        },
+        {
+          "name": "Створити ринковий ордер (Long)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"side\": \"buy\",\n  \"amount\": \"0.001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/order/market",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "order", "market"]
+            }
+          }
+        },
+        {
+          "name": "Створити ринковий ордер (Short)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"side\": \"sell\",\n  \"amount\": \"0.001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/order/market",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "order", "market"]
+            }
+          }
+        },
+        {
+          "name": "Створити Stop-Limit ордер",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"side\": \"sell\",\n  \"amount\": \"0.001\",\n  \"price\": \"48000\",\n  \"activation_price\": \"49000\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/order/stop-limit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "order", "stop-limit"]
+            }
+          }
+        },
+        {
+          "name": "Отримати активні ордери",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/orders/active?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "orders", "active"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Отримати активні ордери (по ринку)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/orders/active?market=BTC_PERP&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "orders", "active"],
+              "query": [
+                {
+                  "key": "market",
+                  "value": "BTC_PERP"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Отримати історію ордерів",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/orders/history?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "orders", "history"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Скасувати ордер",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"orderId\": 12345\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/order",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "order"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📜 Історія",
+      "item": [
+        {
+          "name": "Історія виконаних угод",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/trades/history?limit=50&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "trades", "history"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Історія угод (по ринку)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futures/trades/history?market=BTC_PERP&limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "trades", "history"],
+              "query": [
+                {
+                  "key": "market",
+                  "value": "BTC_PERP"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Налаштування",
+      "item": [
+        {
+          "name": "Встановити Leverage 5x",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"leverage\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/leverage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "leverage"]
+            }
+          }
+        },
+        {
+          "name": "Встановити Leverage 10x",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"leverage\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/leverage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "leverage"]
+            }
+          }
+        },
+        {
+          "name": "Встановити Leverage 20x",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"leverage\": 20\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/leverage",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "leverage"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🧮 Калькулятори",
+      "item": [
+        {
+          "name": "Розрахувати ліквідаційну ціну (Long)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"leverage\": 10,\n  \"entryPrice\": 50000,\n  \"positionSize\": 0.001,\n  \"side\": \"buy\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/calculate/liquidation-price",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "calculate", "liquidation-price"]
+            }
+          }
+        },
+        {
+          "name": "Розрахувати ліквідаційну ціну (Short)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"market\": \"BTC_PERP\",\n  \"leverage\": 10,\n  \"entryPrice\": 50000,\n  \"positionSize\": 0.001,\n  \"side\": \"sell\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/calculate/liquidation-price",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "calculate", "liquidation-price"]
+            }
+          }
+        },
+        {
+          "name": "Розрахувати PNL (Прибуток)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"side\": \"buy\",\n  \"entryPrice\": 50000,\n  \"currentPrice\": 51000,\n  \"positionSize\": 0.001,\n  \"leverage\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/calculate/pnl",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "calculate", "pnl"]
+            }
+          }
+        },
+        {
+          "name": "Розрахувати PNL (Збиток)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"side\": \"buy\",\n  \"entryPrice\": 50000,\n  \"currentPrice\": 49000,\n  \"positionSize\": 0.001,\n  \"leverage\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/futures/calculate/pnl",
+              "host": ["{{base_url}}"],
+              "path": ["api", "futures", "calculate", "pnl"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:80",
+      "type": "string"
+    }
+  ]
+}

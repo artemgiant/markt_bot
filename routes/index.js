@@ -4,6 +4,7 @@ const setupTradingViewRoutes = require('./tradingview.routes');
 const setupExchangeRoutes = require('./exchange.routes');
 const setupTradingRoutes = require('./trading.routes');
 const setupLogsRoutes = require('./logs.routes');
+const setupFuturesRoutes = require('./futures.routes');
 
 /**
  * Налаштування всіх роутів додатку
@@ -16,6 +17,7 @@ function setupRoutes(app, controllers) {
     router.use('/exchanges', setupExchangeRoutes(controllers));
     router.use('/', setupTradingRoutes(controllers)); // order, cancel-order, active-orders
     router.use('/logs', setupLogsRoutes(controllers));
+    router.use('/futures', setupFuturesRoutes(controllers)); // додайте цей рядок
 
     // Старі роути для зворотної сумісності
     setupLegacyRoutes(router, controllers);
