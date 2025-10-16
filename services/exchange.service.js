@@ -2,189 +2,199 @@
 const { filterBalances } = require('../utils');
 
 class ExchangeService {
-    constructor(exchanges) {
+    constructor(exchanges, loggingService) {
         this.exchanges = exchanges;
+        this.loggingService = loggingService;
+        this.enabledExchanges = new Set(['whitebit']); // За замовчуванням включена whitebit
     }
 
     /**
-     * Отримання балансів з біржі
+     * Отримання коннектора біржі
+     * @param {string} exchangeName - Назва біржі (whitebit, binance, тощо)
+     * @returns {object|null} - Коннектор біржі або null
      */
-    async getBalances(exchange, ticker = null) {
-        const exchangeConnector = this.exchanges[exchange];
-
-        if (!exchangeConnector) {
-            throw new Error(`Exchange ${exchange} not found`);
+    getConnector(exchangeName) {
+        if (!exchangeName) {
+            console.warn('⚠️ Exchange name not provided');
+            return null;
         }
 
-        const balances = await exchangeConnector.getSpotBalance(ticker);
+        const normalizedName = exchangeName.toLowerCase();
 
-        // Фільтруємо та форматуємо баланси
-        if (!ticker) {
-            return filterBalances(balances);
+        if (!this.exchanges[normalizedName]) {
+            console.warn(`⚠️ Exchange connector not found: ${normalizedName}`);
+            return null;
         }
 
-        return balances;
-    }
-
-    /**
-     * Отримання всіх балансів з усіх бірж
-     */
-    async getAllBalances(ticker = null) {
-        const results = {};
-
-        for (const [name, connector] of Object.entries(this.exchanges)) {
-            try {
-                const balances = await connector.getSpotBalance(ticker);
-                results[name] = ticker ? balances : filterBalances(balances);
-            } catch (error) {
-                results[name] = { error: error.message };
-            }
+        if (!this.enabledExchanges.has(normalizedName)) {
+            console.warn(`⚠️ Exchange is disabled: ${normalizedName}`);
+            return null;
         }
 
-        return results;
+        return this.exchanges[normalizedName];
     }
 
     /**
      * Тестування підключення до біржі
      */
-    async testConnection(exchange) {
-        const exchangeConnector = this.exchanges[exchange];
+    async testConnection(exchangeName = 'whitebit') {
+        try {
+            const connector = this.getConnector(exchangeName);
+            if (!connector) {
+                throw new Error(`${exchangeName} не підключено`);
+            }
 
-        if (!exchangeConnector) {
-            throw new Error(`Exchange ${exchange} not found`);
+            await connector.testConnection();
+            console.log(`✅ ${exchangeName} connection tested successfully`);
+            return true;
+        } catch (error) {
+            console.error(`❌ ${exchangeName} connection test failed:`, error.message);
+            throw error;
         }
-
-        return exchangeConnector.testConnection();
     }
 
     /**
      * Увімкнення біржі
      */
-    async enableExchange(exchange) {
-        const exchangeConnector = this.exchanges[exchange];
-
-        if (!exchangeConnector) {
-            throw new Error(`Exchange ${exchange} not found`);
+    async enableExchange(exchangeName) {
+        const connector = this.exchanges[exchangeName];
+        if (!connector) {
+            throw new Error(`Exchange ${exchangeName} not found`);
         }
 
-        await exchangeConnector.testConnection();
-        console.log(`✅ Біржа ${exchange} увімкнена`);
-
-        return { success: true, exchange };
+        this.enabledExchanges.add(exchangeName);
+        console.log(`✅ ${exchangeName} enabled`);
+        return true;
     }
 
     /**
      * Вимкнення біржі
      */
-    disableExchange(exchange) {
-        const exchangeConnector = this.exchanges[exchange];
-
-        if (!exchangeConnector) {
-            throw new Error(`Exchange ${exchange} not found`);
-        }
-
-        if (exchangeConnector.disconnect) {
-            exchangeConnector.disconnect();
-        }
-
-        console.log(`🔴 Біржа ${exchange} вимкнена`);
-
-        return { success: true, exchange };
+    disableExchange(exchangeName) {
+        this.enabledExchanges.delete(exchangeName);
+        console.log(`🛑 ${exchangeName} disabled`);
     }
 
     /**
-     * Отримання торгових пар
+     * Отримання статусу підключень
      */
-    async getTradingPairs(exchange) {
-        const exchangeConnector = this.exchanges[exchange];
-
-        if (!exchangeConnector) {
-            throw new Error(`Exchange ${exchange} not found`);
+    getConnectionStatus(exchangeName = null) {
+        if (exchangeName) {
+            const connector = this.exchanges[exchangeName];
+            return {
+                [exchangeName]: {
+                    enabled: this.enabledExchanges.has(exchangeName),
+                    connected: connector ? connector.isConnected() : false
+                }
+            };
         }
 
-        return exchangeConnector.getTradingPairs();
+        const status = {};
+        for (const [name, connector] of Object.entries(this.exchanges)) {
+            status[name] = {
+                enabled: this.enabledExchanges.has(name),
+                connected: connector.isConnected()
+            };
+        }
+        return status;
+    }
+
+    /**
+     * Отримання балансів
+     */
+    async getBalances(exchangeName, ticker = null) {
+        const connector = this.getConnector(exchangeName);
+        if (!connector) {
+            throw new Error(`${exchangeName} не підключено`);
+        }
+
+        try {
+            const balance = await connector.getSpotBalance();
+
+            if (ticker) {
+                return balance[ticker] || { available: '0', freeze: '0' };
+            }
+
+            // Використовуємо filterBalances для фільтрації балансів
+            return filterBalances(balance);
+        } catch (error) {
+            throw new Error(`Помилка отримання балансу: ${error.message}`);
+        }
+    }
+
+    /**
+     * Отримання балансів з усіх бірж
+     */
+    async getAllBalances(ticker = null) {
+        const allBalances = {};
+
+        for (const exchangeName of this.enabledExchanges) {
+            try {
+                allBalances[exchangeName] = await this.getBalances(exchangeName, ticker);
+            } catch (error) {
+                console.error(`❌ Error getting balance from ${exchangeName}:`, error.message);
+                allBalances[exchangeName] = { error: error.message };
+            }
+        }
+
+        return allBalances;
     }
 
     /**
      * Отримання тікерів
      */
-    async getTickers(exchange, market = null) {
-        const exchangeConnector = this.exchanges[exchange];
-
-        if (!exchangeConnector) {
-            throw new Error(`Exchange ${exchange} not found`);
+    async getTickers(exchangeName = 'whitebit', market = null) {
+        const connector = this.getConnector(exchangeName);
+        if (!connector) {
+            throw new Error(`${exchangeName} не підключено`);
         }
 
-        return exchangeConnector.getTickers(market);
+        try {
+            return await connector.getTickers(market);
+        } catch (error) {
+            throw new Error(`Помилка отримання тікерів: ${error.message}`);
+        }
     }
 
     /**
-     * Перевірка статусу підключення
+     * Отримання торгових пар
      */
-    getConnectionStatus(exchange = null) {
-        if (exchange) {
-            const connector = this.exchanges[exchange];
-            return connector ? connector.isConnected() : false;
+    async getTradingPairs(exchangeName = 'whitebit') {
+        const connector = this.getConnector(exchangeName);
+        if (!connector) {
+            throw new Error(`${exchangeName} не підключено`);
         }
 
-        // Статус всіх бірж
-        const status = {};
-        for (const [name, connector] of Object.entries(this.exchanges)) {
-            status[name] = connector.isConnected();
+        try {
+            return await connector.getTradingPairs();
+        } catch (error) {
+            throw new Error(`Помилка отримання торгових пар: ${error.message}`);
         }
-
-        return status;
     }
 
     /**
-     * Екстрена зупинка (скасування всіх ордерів)
+     * Екстрена зупинка біржі
      */
-    async emergencyStop(exchange) {
-        const exchangeConnector = this.exchanges[exchange];
+    async emergencyStop(exchangeName) {
+        console.log(`🚨 EMERGENCY STOP for ${exchangeName}`);
+        this.disableExchange(exchangeName);
 
-        if (!exchangeConnector) {
-            throw new Error(`Exchange ${exchange} not found`);
-        }
-
-        console.log(`🚨 ЕКСТРЕНА ЗУПИНКА для ${exchange}`);
-
-        // Скасування всіх ордерів
-        await exchangeConnector.cancelAllOrders();
-
-        // Відключення біржі
-        if (exchangeConnector.disconnect) {
-            exchangeConnector.disconnect();
-        }
-
-        return { success: true, message: 'Екстрену зупинку виконано' };
+        // Тут можна додати логіку скасування всіх активних ордерів
+        // const connector = this.exchanges[exchangeName];
+        // if (connector) {
+        //     await connector.cancelAllOrders();
+        // }
     }
 
     /**
      * Екстрена зупинка всіх бірж
      */
     async emergencyStopAll() {
-        console.log('🚨 ЕКСТРЕНА ЗУПИНКА ВСІХ БІРЖ');
-
-        const results = {};
-
-        for (const [name, connector] of Object.entries(this.exchanges)) {
-            try {
-                await connector.cancelAllOrders();
-
-                if (connector.disconnect) {
-                    connector.disconnect();
-                }
-
-                results[name] = { success: true };
-            } catch (error) {
-                results[name] = { success: false, error: error.message };
-            }
+        console.log('🚨 EMERGENCY STOP ALL EXCHANGES');
+        for (const exchangeName of this.enabledExchanges) {
+            await this.emergencyStop(exchangeName);
         }
-
-        return results;
     }
 }
 
 module.exports = ExchangeService;
-
-
