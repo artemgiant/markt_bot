@@ -188,7 +188,7 @@ class ExchangeController {
      */
     async testConnection(req, res) {
         try {
-            const { exchange } = req.params || 'whitebit';
+            const exchange = req.params.exchange || 'whitebit';
             console.log(`🧪 Тестування підключення до ${exchange} API...`);
 
             // Тест публічного API

@@ -63,7 +63,7 @@ class WhiteBitTradingDashboard {
     async testApiConnection() {
         try {
             this.addLog('🧪 Тестування API підключення...', 'info');
-            const response = await fetch('/api/test-connection');
+            const response = await fetch('/api/exchanges/test-connection');
             const result = await response.json();
             if (result.success) {
                 this.addLog('✅ API тестування пройшло успішно', 'success');
@@ -170,8 +170,12 @@ class WhiteBitTradingDashboard {
     async updateBalance() {
         try {
             const response = await fetch('/api/balances');
-            const balances = await response.json();
-            if (balances.whitebit) {
+
+            const resp = await response.json();
+
+            if (resp.success) {
+             const balances = await resp.balances;
+
                 this.balance = balances.whitebit;
 
                 if (!balances.whitebit.error) {
