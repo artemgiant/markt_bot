@@ -1,4 +1,3 @@
-// connectors/whitebit.js - Повна версія з ф'ючерсними методами
 const axios = require('axios');
 const crypto = require('crypto');
 const WebSocket = require('ws');
@@ -12,12 +11,13 @@ class WhiteBitConnector {
         this.ws = null;
         this.wsId = 1;
         this.subscriptions = new Map();
-
-        // Для генерації nonce
         this.lastNonce = Date.now();
     }
 
-    // Генерація унікального nonce
+    // ================================================
+    // БАЗОВІ МЕТОДИ
+    // ================================================
+
     generateNonce() {
         const now = Date.now();
         if (now <= this.lastNonce) {
@@ -28,15 +28,10 @@ class WhiteBitConnector {
         return this.lastNonce;
     }
 
-    // Загальний метод для API запитів
     async makeRequest(method, endpoint, params = {}, isPrivate = false) {
         try {
             const url = `${this.baseURL}/api/v4${endpoint}`;
-            const config = {
-                method,
-                url,
-                headers:{}
-            };
+            const config = { method, url, headers: {} };
 
             if (isPrivate) {
                 const nonce = this.generateNonce();
@@ -47,7 +42,6 @@ class WhiteBitConnector {
                     ...params
                 };
 
-                const timestamp = Date.now();
                 const payload = Buffer.from(JSON.stringify(requestBody)).toString('base64');
                 const hash = crypto.createHmac("sha512", this.config.secretKey);
                 const signature = hash.update(payload).digest("hex");
@@ -57,100 +51,34 @@ class WhiteBitConnector {
                 config.headers['X-TXC-PAYLOAD'] = payload;
                 config.headers['X-TXC-SIGNATURE'] = signature;
                 config.data = requestBody;
-
-                console.log(`\n📋 === WHITEBIT API DEBUG ===`);
-                console.log(`🔗 URL: ${url}`);
-                console.log(`📝 Method: ${method}`);
-                console.log(`🔑 Endpoint: ${endpoint}`);
-                console.log(`⏰ Timestamp (ms): ${timestamp}`);
-                console.log(`🎲 Nonce (ms): ${nonce}`);
-                console.log(`📦 Request Body:`, JSON.stringify(requestBody, null, 2));
-                console.log(`🔐 Payload (base64):`, payload);
-                console.log(`🔏 Signature:`, signature);
-                console.log(`📋 ========================\n`);
             } else {
                 if (method === 'GET') {
                     config.params = params;
-                    console.log(`🌐 Публічний GET запит: ${url} з параметрами:`, params);
                 } else {
                     config.data = params;
-                    console.log(`🌐 Публічний POST запит: ${url} з даними:`, params);
                 }
             }
 
             const response = await axios(config);
-
-            if (isPrivate) {
-                console.log(`✅ Успішна відповідь від WhiteBit API:`, {
-                    status: response.status,
-                    dataKeys: Object.keys(response.data || {}),
-                    dataSize: JSON.stringify(response.data).length,
-                    responseType: typeof response.data
-                });
-
-                if (response.data) {
-                    console.log(`📋 Перші 200 символів відповіді:`, JSON.stringify(response.data).substring(0, 200) + '...');
-                }
-            }
-
             return response.data;
         } catch (error) {
-            console.log(`\n❌ === WHITEBIT API ERROR ===`);
-            console.error('🚫 Error Type:', error.constructor.name);
-            console.error('🚫 Error Message:', error.message);
-            console.log(`📝 Method: ${method}`);
-            console.log(`🔑 Endpoint: ${endpoint}`);
-
-            if (error.response) {
-                console.log(`📊 HTTP Status: ${error.response.status}`);
-                console.log(`📋 Response Headers:`, error.response.headers);
-                console.log(`📦 Response Data:`, JSON.stringify(error.response.data, null, 2));
-
-                if (error.response.data) {
-                    const errorData = error.response.data;
-                    if (errorData.message) {
-                        console.log(`🚫 Error Message: ${errorData.message}`);
-                    }
-                    if (errorData.errors) {
-                        console.log(`🚫 Detailed Errors:`, errorData.errors);
-                    }
-                    if (errorData.code) {
-                        console.log(`🚫 Error Code: ${errorData.code}`);
-                    }
-                }
-            } else if (error.request) {
-                console.log(`🚫 No Response Received:`, error.request);
-            } else {
-                console.log(`🚫 Request Setup Error: ${error.message}`);
-            }
-            console.log(`❌ ========================\n`);
 
             const errorMessage = error.response?.data?.message || error.response?.data?.errors || error.message;
             throw new Error(`WhiteBit API помилка: ${errorMessage}`);
         }
     }
 
-    // Тестове підключення
     async testConnection() {
         try {
             if (!this.config.apiKey || !this.config.secretKey) {
-                throw new Error('API ключі не налаштовані. Перевірте .env файл');
+                throw new Error('API ключі не налаштовані');
             }
-
-            console.log('🧪 Тестування публічного API...');
             await this.makeRequest('GET', '/public/ping');
             this.connected = true;
-            console.log('✅ Публічне API працює');
-
-            console.log('🧪 Тестування приватного API...');
             await this.getSpotBalance();
-            console.log('✅ Приватне API працює');
-
-            console.log('✅ WhiteBit підключення встановлено повністю');
             return true;
         } catch (error) {
             this.connected = false;
-            console.error('❌ Помилка підключення до WhiteBit:', error.message);
             throw new Error(`Помилка підключення до WhiteBit: ${error.message}`);
         }
     }
@@ -159,7 +87,9 @@ class WhiteBitConnector {
         return this.connected;
     }
 
-    // ===== ПУБЛІЧНІ МЕТОДИ =====
+    // ================================================
+    // ПУБЛІЧНІ МЕТОДИ
+    // ================================================
 
     async getTradingPairs() {
         try {
@@ -176,50 +106,58 @@ class WhiteBitConnector {
             const response = await this.makeRequest('GET', '/public/ticker', params);
             return response;
         } catch (error) {
-            throw new Error(`Помилка отримання цін: ${error.message}`);
+            throw new Error(`Помилка отримання тікерів: ${error.message}`);
         }
     }
 
-    async getOrderBook(market, limit = 100) {
+    async getOrderBook(market, limit = 100, level = 0) {
         try {
-            const response = await this.makeRequest('GET', '/public/orderbook', {
-                market,
-                limit
-            });
+            const params = { market, limit, level };
+            const response = await this.makeRequest('GET', '/public/orderbook', params);
             return response;
         } catch (error) {
-            throw new Error(`Помилка отримання стакана: ${error.message}`);
+            throw new Error(`Помилка отримання книги ордерів: ${error.message}`);
         }
     }
 
-    async getTrades(market, lastId = null) {
+    async getServerTime() {
         try {
-            const params = { market };
-            if (lastId) params.lastId = lastId;
-
-            const response = await this.makeRequest('GET', '/public/trades', params);
+            const response = await this.makeRequest('GET', '/public/time');
             return response;
         } catch (error) {
-            throw new Error(`Помилка отримання торгів: ${error.message}`);
+            throw new Error(`Помилка отримання часу сервера: ${error.message}`);
         }
     }
 
-    // ===== ПРИВАТНІ МЕТОДИ (СПОТ ТОРГІВЛЯ) =====
+    // ================================================
+    // SPOT - Баланси
+    // ================================================
 
-    async getSpotBalance(ticker) {
+    async getSpotBalance() {
         try {
-            let params = {}
-            if (ticker) {
-                params = {"ticker":ticker}
-            }
-            const response = await this.makeRequest('POST', '/trade-account/balance', params, true);
+            const response = await this.makeRequest('POST', '/trade-account/balance', {}, true);
             return response;
         } catch (error) {
-            throw new Error(`Помилка отримання балансу: ${error.message}`);
+            throw new Error(`Помилка отримання спот балансу: ${error.message}`);
         }
     }
 
-    async createLimitOrder(market, side, amount, price, options = {}) {
+    async getSpotTradeHistory(market = null, limit = 50, offset = 0) {
+        try {
+            const params = { limit, offset };
+            if (market) params.market = market;
+            const response = await this.makeRequest('POST', '/trade-account/executed-history', params, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка отримання історії спот торгів: ${error.message}`);
+        }
+    }
+
+    // ================================================
+    // SPOT - Ордери
+    // ================================================
+
+    async createSpotLimitOrder(market, side, amount, price, options = {}) {
         try {
             const params = {
                 market,
@@ -228,44 +166,29 @@ class WhiteBitConnector {
                 price: price.toString(),
                 ...options
             };
-
             const response = await this.makeRequest('POST', '/order/new', params, true);
-            console.log(`📝 WhiteBit лімітний ордер створено: ${side.toUpperCase()} ${amount} ${market} за ${price}`);
             return response;
         } catch (error) {
-            throw new Error(`Помилка створення ордера: ${error.message}`);
+            throw new Error(`Помилка створення спот лімітного ордера: ${error.message}`);
         }
     }
 
-    async createMarketOrder(market, side, amount, options = {}) {
+    async createSpotMarketOrder(market, side, amount, options = {}) {
         try {
-            let params = {
+            const params = {
                 market,
                 side,
                 amount: amount.toString(),
-                "clientOrderId": "demo_order_".nonce,
                 ...options
             };
-
-            if(side=='buy'){
-                params.amount = amount.toString();
-            }else if(side=='sell'){
-                const ticker = market.split('_')[0]
-                console.log(ticker);
-                const resp = await this.getSpotBalance(ticker)
-                params.amount = Math.trunc(resp.available * 1000) / 1000;
-            }
-
             const response = await this.makeRequest('POST', '/order/market', params, true);
-            console.log(`📈 WhiteBit ринковий ордер: ${side.toUpperCase()} ${amount} ${market}`);
             return response;
         } catch (error) {
-            console.log('Market order error details:', error.response?.data);
             throw error;
         }
     }
 
-    async buyMarketByQuote(market, quoteAmount, options = {}) {
+    async buySpotMarketByQuote(market, quoteAmount, options = {}) {
         try {
             const params = {
                 market,
@@ -273,83 +196,298 @@ class WhiteBitConnector {
                 quoteAmount: quoteAmount.toString(),
                 ...options
             };
-
             const response = await this.makeRequest('POST', '/order/stock_market', params, true);
-            console.log(`💰 WhiteBit купівля на суму: ${quoteAmount} в ${market}`);
             return response;
         } catch (error) {
-            throw new Error(`Помилка купівлі за сумою: ${error.message}`);
+            throw new Error(`Помилка спот купівлі за сумою: ${error.message}`);
         }
     }
 
-    async cancelOrder(market, orderId) {
+    async getSpotActiveOrders(market = null, limit = 50, offset = 0) {
+        try {
+            const params = { limit, offset };
+            if (market) params.market = market;
+            const response = await this.makeRequest('POST', '/orders', params, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка отримання активних спот ордерів: ${error.message}`);
+        }
+    }
+
+    async getSpotOrderHistory(market = null, limit = 50, offset = 0) {
+        try {
+            const params = { limit, offset };
+            if (market) params.market = market;
+            const response = await this.makeRequest('POST', '/order/history', params, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка отримання історії спот ордерів: ${error.message}`);
+        }
+    }
+
+    async cancelSpotOrder(market, orderId) {
         try {
             const response = await this.makeRequest('POST', '/order/cancel', {
                 market,
                 orderId: parseInt(orderId)
             }, true);
-
-            console.log(`❌ WhiteBit ордер скасовано: ${orderId}`);
             return response;
         } catch (error) {
-            throw new Error(`Помилка скасування ордера: ${error.message}`);
+            throw new Error(`Помилка скасування спот ордера: ${error.message}`);
         }
     }
 
-    async cancelAllOrders(market = null) {
+    async cancelAllSpotOrders(market = null) {
         try {
             const params = market ? { market } : {};
             const response = await this.makeRequest('POST', '/order/cancel/all', params, true);
-            console.log(`❌ WhiteBit всі ордери скасовано${market ? ` для ${market}` : ''}`);
             return response;
         } catch (error) {
-            throw new Error(`Помилка скасування всіх ордерів: ${error.message}`);
+            throw new Error(`Помилка скасування всіх спот ордерів: ${error.message}`);
         }
     }
 
-    async getActiveOrders(market = null, limit = 50, offset = 0) {
+    // ================================================
+    // FUTURES - Баланси та позиції
+    // ================================================
+
+    async getCollateralBalance() {
+        try {
+            const response = await this.makeRequest('POST', '/collateral-account/balance', {}, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка отримання ф'ючерсного балансу: ${error.message}`);
+        }
+    }
+
+    async getCollateralMarkets() {
+        try {
+            const response = await this.makeRequest('GET', '/public/collateral/markets');
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка отримання ф'ючерсних ринків: ${error.message}`);
+        }
+    }
+
+    async getCollateralPositions(market = null) {
+        try {
+            const params = market ? { market } : {};
+            const response = await this.makeRequest('POST', '/collateral-account/positions', params, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка отримання ф'ючерсних позицій: ${error.message}`);
+        }
+    }
+
+    async getCollateralFee() {
+        try {
+            const response = await this.makeRequest('POST', '/collateral-account/fee', {}, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка отримання ф'ючерсних комісій: ${error.message}`);
+        }
+    }
+
+    async getCollateralExecutedHistory(market = null, limit = 50, offset = 0) {
         try {
             const params = { limit, offset };
             if (market) params.market = market;
-
-            const response = await this.makeRequest('POST', '/orders', params, true);
+            const response = await this.makeRequest('POST', '/collateral-account/executed-history', params, true);
             return response;
         } catch (error) {
-            throw new Error(`Помилка отримання активних ордерів: ${error.message}`);
+            throw new Error(`Помилка отримання історії ф'ючерсних угод: ${error.message}`);
         }
     }
 
-    async getOrderHistory(market = null, limit = 50, offset = 0) {
+    // ================================================
+    // FUTURES - Управління позиціями
+    // ================================================
+
+    async closeCollateralPosition(market, positionId) {
+        try {
+            const response = await this.makeRequest('POST', '/collateral-account/positions/close', {
+                market,
+                positionId: parseInt(positionId)
+            }, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка закриття ф'ючерсної позиції: ${error.message}`);
+        }
+    }
+
+    calculateLiquidationPrice(side, entryPrice, positionSize, leverage = 1, maintenanceMarginRate = 0.005) {
+        try {
+            let liquidationPrice;
+            const marginAmount = (entryPrice * positionSize) / leverage;
+
+            if (side.toLowerCase() === 'buy') {
+                liquidationPrice = entryPrice * (1 - (1 / leverage) + maintenanceMarginRate);
+            } else {
+                liquidationPrice = entryPrice * (1 + (1 / leverage) - maintenanceMarginRate);
+            }
+
+            return {
+                liquidationPrice: liquidationPrice.toFixed(8),
+                entryPrice: entryPrice,
+                leverage: leverage,
+                side: side,
+                positionSize: positionSize,
+                marginAmount: marginAmount.toFixed(8),
+                maintenanceMarginRate: maintenanceMarginRate
+            };
+        } catch (error) {
+            throw new Error(`Помилка розрахунку ліквідаційної ціни: ${error.message}`);
+        }
+    }
+
+    calculatePNL(side, entryPrice, currentPrice, positionSize, leverage = 1) {
+        try {
+            let pnl, pnlPercent, roi;
+
+            if (side.toLowerCase() === 'buy') {
+                pnl = (currentPrice - entryPrice) * positionSize;
+                pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
+            } else {
+                pnl = (entryPrice - currentPrice) * positionSize;
+                pnlPercent = ((entryPrice - currentPrice) / entryPrice) * 100;
+            }
+
+            roi = pnlPercent * leverage;
+
+            return {
+                pnl: pnl.toFixed(8),
+                pnlPercent: pnlPercent.toFixed(2),
+                roi: roi.toFixed(2),
+                side: side,
+                leverage: leverage
+            };
+        } catch (error) {
+            throw new Error(`Помилка розрахунку PNL: ${error.message}`);
+        }
+    }
+
+    // ================================================
+    // FUTURES - Ордери
+    // ================================================
+
+    async createCollateralLimitOrder(market, side, amount, price, options = {}) {
+        try {
+            const params = {
+                market,
+                side, // 'buy' or 'sell'
+                amount: amount.toString(), // amount of stock currency
+                price: price.toString()
+            };
+
+            // Додаткові опціональні параметри
+            if (options.clientOrderId) params.clientOrderId = options.clientOrderId;
+            if (options.postOnly !== undefined) params.postOnly = options.postOnly;
+            if (options.stopLoss) params.stopLoss = options.stopLoss.toString();
+            if (options.takeProfit) params.takeProfit = options.takeProfit.toString();
+            if (options.stp) params.stp = options.stp; // 'no' / 'cancel_both' / 'cancel_new' / 'cancel_old'
+            if (options.positionSide) params.positionSide = options.positionSide; // 'LONG' / 'SHORT' / 'BOTH'
+
+            const response = await this.makeRequest('POST', '/order/collateral/limit', params, true);
+            console.log(`📝 WhiteBit ф'ючерсний лімітний ордер: ${side.toUpperCase()} ${amount} ${market} @ ${price}`);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка створення ф'ючерсного лімітного ордера: ${error.message}`);
+        }
+    }
+
+    async createCollateralMarketOrder(market, side, amount, options = {}) {
+        try {
+            const params = {
+                market,
+                side, // 'buy' or 'sell'
+                amount: amount.toString() // amount of stock currency
+            };
+
+            // Додаткові опціональні параметри згідно API v4 документації
+            if (options.clientOrderId) params.clientOrderId = options.clientOrderId;
+            if (options.stopLoss) params.stopLoss = options.stopLoss.toString();
+            if (options.takeProfit) params.takeProfit = options.takeProfit.toString();
+            if (options.stp) params.stp = options.stp; // 'no' / 'cancel_both' / 'cancel_new' / 'cancel_old'
+            if (options.positionSide) params.positionSide = options.positionSide; // 'LONG' / 'SHORT' / 'BOTH'
+
+
+            const response = await this.makeRequest('POST', '/order/collateral/market', params, true);
+
+            console.log(response)
+
+            return response;
+
+        } catch (error) {
+            console.error('Full error:', JSON.stringify(error.response?.data || error, null, 2));
+
+            const apiError = error.response?.data;
+            const details = apiError ?
+                `\nCode: ${apiError.code}\nMessage: ${apiError.message}\nErrors: ${JSON.stringify(apiError.errors)}` :
+                '';
+
+            throw new Error(`Помилка створення ф'ючерсного ринкового ордера: ${error.message}${details}`);
+        }
+    }
+
+    async createCollateralStopLimitOrder(market, side, amount, price, activation_price, options = {}) {
+        try {
+            const params = {
+                market,
+                side,
+                amount: amount.toString(),
+                price: price.toString(),
+                activation_price: activation_price.toString(),
+                ...options
+            };
+            const response = await this.makeRequest('POST', '/collateral-account/order/stop-limit', params, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка створення ф'ючерсного стоп-лімітного ордера: ${error.message}`);
+        }
+    }
+
+    async getCollateralActiveOrders(market = null, limit = 50, offset = 0) {
         try {
             const params = { limit, offset };
             if (market) params.market = market;
-
-            const response = await this.makeRequest('POST', '/order/history', params, true);
+            const response = await this.makeRequest('POST', '/collateral-account/orders', params, true);
             return response;
         } catch (error) {
-            throw new Error(`Помилка історії ордерів: ${error.message}`);
+            throw new Error(`Помилка отримання активних ф'ючерсних ордерів: ${error.message}`);
         }
     }
 
-    async getTradeHistory(market = null, limit = 50, offset = 0) {
+    async getCollateralOrderHistory(market = null, limit = 50, offset = 0) {
         try {
             const params = { limit, offset };
             if (market) params.market = market;
-
-            const response = await this.makeRequest('POST', '/trade-account/executed-history', params, true);
+            const response = await this.makeRequest('POST', '/collateral-account/order/history', params, true);
             return response;
         } catch (error) {
-            throw new Error(`Помилка історії торгів: ${error.message}`);
+            throw new Error(`Помилка отримання історії ф'ючерсних ордерів: ${error.message}`);
         }
     }
 
-    // ===== WEBSOCKET МЕТОДИ =====
+    async cancelCollateralOrder(market, orderId) {
+        try {
+            const response = await this.makeRequest('POST', '/collateral-account/order/cancel', {
+                market,
+                orderId: parseInt(orderId)
+            }, true);
+            return response;
+        } catch (error) {
+            throw new Error(`Помилка скасування ф'ючерсного ордера: ${error.message}`);
+        }
+    }
+
+    // ================================================
+    // WEBSOCKET
+    // ================================================
 
     connectWebSocket() {
         this.ws = new WebSocket(this.wsURL);
 
         this.ws.on('open', () => {
-            console.log('🔗 WhiteBit WebSocket підключено');
             this.connected = true;
         });
 
@@ -363,11 +501,9 @@ class WhiteBitConnector {
         });
 
         this.ws.on('close', () => {
-            console.log('🔗 WhiteBit WebSocket закрито');
             this.connected = false;
             setTimeout(() => {
                 if (!this.connected) {
-                    console.log('🔄 WhiteBit перепідключення...');
                     this.connectWebSocket();
                 }
             }, 5000);
@@ -390,7 +526,6 @@ class WhiteBitConnector {
             }));
         }
 
-        console.log(`📈 WhiteBit підписка на ціни: ${market}`);
         return id;
     }
 
@@ -406,7 +541,6 @@ class WhiteBitConnector {
             }));
         }
 
-        console.log(`📊 WhiteBit підписка на стакан: ${market}`);
         return id;
     }
 
@@ -422,7 +556,6 @@ class WhiteBitConnector {
             }));
         }
 
-        console.log(`📈 WhiteBit підписка на угоди: ${market}`);
         return id;
     }
 
@@ -498,7 +631,6 @@ class WhiteBitConnector {
             }
         }
         this.subscriptions.clear();
-        console.log('🔗 WhiteBit всі підписки скасовано');
     }
 
     disconnect() {
@@ -508,294 +640,6 @@ class WhiteBitConnector {
             this.ws = null;
         }
         this.connected = false;
-        console.log('🔗 WhiteBit з\'єднання закрито');
-    }
-
-    // ===== ФІ'ЮЧЕРСНІ МЕТОДИ (COLLATERAL TRADING) =====
-
-    /**
-     * Отримання балансу колатералу
-     */
-    async getCollateralBalance() {
-        try {
-            const response = await this.makeRequest('POST', '/collateral-account/balance', {}, true);
-            console.log('💰 WhiteBit баланс колатералу отримано');
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання балансу колатералу: ${error.message}`);
-        }
-    }
-
-    /**
-     * Отримання інформації про колатеральні ринки
-     */
-    async getCollateralMarkets() {
-        try {
-            const response = await this.makeRequest('GET', '/public/collateral/markets');
-            console.log('📊 WhiteBit колатеральні ринки отримано');
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання колатеральних ринків: ${error.message}`);
-        }
-    }
-
-    /**
-     * Створення лімітного ордера для колатеральної торгівлі
-     */
-    async createCollateralLimitOrder(market, side, amount, price, options = {}) {
-        try {
-            const params = {
-                market,
-                side,
-                amount: amount.toString(),
-                price: price.toString(),
-                ...options
-            };
-
-            const response = await this.makeRequest('POST', '/collateral-account/order', params, true);
-            console.log(`📝 WhiteBit колатеральний лімітний ордер: ${side.toUpperCase()} ${amount} ${market} @ ${price}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка створення колатерального ордера: ${error.message}`);
-        }
-    }
-
-    /**
-     * Створення ринкового ордера для колатеральної торгівлі
-     */
-    async createCollateralMarketOrder(market, side, amount, options = {}) {
-        try {
-            const params = {
-                market,
-                side,
-                amount: amount.toString(),
-                ...options
-            };
-
-            const response = await this.makeRequest('POST', '/collateral-account/order/market', params, true);
-            console.log(`📈 WhiteBit колатеральний ринковий ордер: ${side.toUpperCase()} ${amount} ${market}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка створення ринкового колатерального ордера: ${error.message}`);
-        }
-    }
-
-    /**
-     * Створення стоп-лімітного ордера для колатеральної торгівлі
-     */
-    async createCollateralStopLimitOrder(market, side, amount, price, activation_price, options = {}) {
-        try {
-            const params = {
-                market,
-                side,
-                amount: amount.toString(),
-                price: price.toString(),
-                activation_price: activation_price.toString(),
-                ...options
-            };
-
-            const response = await this.makeRequest('POST', '/collateral-account/order/stop-limit', params, true);
-            console.log(`🛑 WhiteBit стоп-лімітний ордер: ${side.toUpperCase()} ${amount} ${market} @ ${price}, активація @ ${activation_price}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка створення стоп-лімітного ордера: ${error.message}`);
-        }
-    }
-
-    /**
-     * Отримання активних колатеральних ордерів
-     */
-    async getCollateralActiveOrders(market = null, limit = 50, offset = 0) {
-        try {
-            const params = { limit, offset };
-            if (market) params.market = market;
-
-            const response = await this.makeRequest('POST', '/collateral-account/orders', params, true);
-            console.log(`📋 WhiteBit активні колатеральні ордери отримано${market ? ` для ${market}` : ''}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання активних колатеральних ордерів: ${error.message}`);
-        }
-    }
-
-    /**
-     * Отримання історії колатеральних ордерів
-     */
-    async getCollateralOrderHistory(market = null, limit = 50, offset = 0) {
-        try {
-            const params = { limit, offset };
-            if (market) params.market = market;
-
-            const response = await this.makeRequest('POST', '/collateral-account/order/history', params, true);
-            console.log(`📜 WhiteBit історія колатеральних ордерів${market ? ` для ${market}` : ''}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання історії колатеральних ордерів: ${error.message}`);
-        }
-    }
-
-    /**
-     * Скасування колатерального ордера
-     */
-    async cancelCollateralOrder(market, orderId) {
-        try {
-            const response = await this.makeRequest('POST', '/collateral-account/order/cancel', {
-                market,
-                orderId: parseInt(orderId)
-            }, true);
-
-            console.log(`❌ WhiteBit колатеральний ордер скасовано: ${orderId}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка скасування колатерального ордера: ${error.message}`);
-        }
-    }
-
-    /**
-     * Отримання відкритих позицій
-     */
-    async getCollateralPositions(market = null) {
-        try {
-            const params = market ? { market } : {};
-            const response = await this.makeRequest('POST', '/collateral-account/positions', params, true);
-            console.log(`📊 WhiteBit відкриті позиції${market ? ` для ${market}` : ''}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання позицій: ${error.message}`);
-        }
-    }
-
-    /**
-     * Закриття позиції по ринковій ціні
-     */
-    async closeCollateralPosition(market, positionId) {
-        try {
-            const response = await this.makeRequest('POST', '/collateral-account/positions/close', {
-                market,
-                positionId: parseInt(positionId)
-            }, true);
-
-            console.log(`🔒 WhiteBit позиція закрита: ${positionId} на ${market}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка закриття позиції: ${error.message}`);
-        }
-    }
-
-    /**
-     * Отримання історії виконаних угод (trades)
-     */
-    async getCollateralExecutedHistory(market = null, limit = 50, offset = 0) {
-        try {
-            const params = { limit, offset };
-            if (market) params.market = market;
-
-            const response = await this.makeRequest('POST', '/collateral-account/executed-history', params, true);
-            console.log(`📈 WhiteBit історія виконаних колатеральних угод${market ? ` для ${market}` : ''}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання історії виконаних угод: ${error.message}`);
-        }
-    }
-
-    /**
-     * Встановлення/зміна левериджу для ринку
-     */
-    async setCollateralLeverage(market, leverage) {
-        try {
-            if (leverage < 1 || leverage > 125) {
-                throw new Error('Leverage має бути від 1 до 125');
-            }
-
-            const response = await this.makeRequest('POST', '/collateral-account/leverage', {
-                market,
-                leverage: parseInt(leverage)
-            }, true);
-
-            console.log(`⚖️ WhiteBit leverage встановлено: ${leverage}x для ${market}`);
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка встановлення leverage: ${error.message}`);
-        }
-    }
-
-    /**
-     * Отримання summary колатерального акаунту
-     */
-    async getCollateralSummary() {
-        try {
-            const response = await this.makeRequest('POST', '/collateral-account/summary', {}, true);
-            console.log('📊 WhiteBit summary колатерального акаунту отримано');
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання summary: ${error.message}`);
-        }
-    }
-
-    /**
-     * Отримання комісій для колатеральної торгівлі
-     */
-    async getCollateralFee() {
-        try {
-            const response = await this.makeRequest('POST', '/collateral-account/fee', {}, true);
-            console.log('💵 WhiteBit комісії колатеральної торгівлі отримано');
-            return response;
-        } catch (error) {
-            throw new Error(`Помилка отримання комісій: ${error.message}`);
-        }
-    }
-
-    /**
-     * Розрахунок ліквідаційної ціни для позиції
-     */
-    calculateLiquidationPrice(market, leverage, entryPrice, positionSize, side) {
-        try {
-            const maintenanceMarginRate = 0.005; // 0.5%
-
-            let liquidationPrice;
-            if (side.toLowerCase() === 'buy') {
-                liquidationPrice = entryPrice * (1 - (1 / leverage) + maintenanceMarginRate);
-            } else {
-                liquidationPrice = entryPrice * (1 + (1 / leverage) - maintenanceMarginRate);
-            }
-
-            console.log(`📉 Ліквідаційна ціна для ${side} ${market} з leverage ${leverage}x: ${liquidationPrice}`);
-            return liquidationPrice;
-        } catch (error) {
-            throw new Error(`Помилка розрахунку ліквідаційної ціни: ${error.message}`);
-        }
-    }
-
-    /**
-     * Розрахунок потенційного PNL (Profit and Loss)
-     */
-    calculatePNL(side, entryPrice, currentPrice, positionSize, leverage = 1) {
-        try {
-            let pnl, pnlPercent, roi;
-
-            if (side.toLowerCase() === 'buy') {
-                pnl = (currentPrice - entryPrice) * positionSize;
-                pnlPercent = ((currentPrice - entryPrice) / entryPrice) * 100;
-            } else {
-                pnl = (entryPrice - currentPrice) * positionSize;
-                pnlPercent = ((entryPrice - currentPrice) / entryPrice) * 100;
-            }
-
-            roi = pnlPercent * leverage;
-
-            const result = {
-                pnl: pnl.toFixed(8),
-                pnlPercent: pnlPercent.toFixed(2),
-                roi: roi.toFixed(2),
-                side: side,
-                leverage: leverage
-            };
-
-            console.log(`💰 PNL розраховано:`, result);
-            return result;
-        } catch (error) {
-            throw new Error(`Помилка розрахунку PNL: ${error.message}`);
-        }
     }
 }
 

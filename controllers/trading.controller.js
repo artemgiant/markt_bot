@@ -436,7 +436,7 @@ class TradingController {
     async createMarketOrder(req, res) {
         try {
             const exchange = req.params.exchange || 'whitebit';
-            const { market, side, amount, clientOrderId } = req.body;
+            const { market, side, amount, clientOrderId, positionSide } = req.body;
 
             const connector = this.exchangeService.getConnector(exchange);
             if (!connector) {
@@ -455,6 +455,7 @@ class TradingController {
 
             const options = {};
             if (clientOrderId) options.clientOrderId = clientOrderId;
+            if (positionSide) options.positionSide = positionSide;
 
             const order = await connector.createCollateralMarketOrder(
                 market,

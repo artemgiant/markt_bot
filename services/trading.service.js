@@ -1,4 +1,3 @@
-// services/trading.service.js
 const TradingViewConnector = require('../connectors/trading_view');
 
 class TradingService {
@@ -8,21 +7,16 @@ class TradingService {
         this.loggingService = loggingService;
     }
 
-    /**
-     * Обробка сигналу від TradingView
-     */
     async processTradingViewSignal(rawSignal, amount = 6) {
         let order = null;
         let orderError = null;
 
         try {
-            // Парсинг сигналу
             const parsedSignal = TradingViewConnector.parseSignalSpot(rawSignal);
             console.log('📈 Парсений сигнал:', parsedSignal);
 
-            // Створення ордера на біржі
             try {
-                order = await this.exchanges.whitebit.createMarketOrder(
+                order = await this.exchanges.whitebit.createSpotMarketOrder(
                     parsedSignal.coinCode,
                     parsedSignal.action,
                     amount
@@ -33,12 +27,10 @@ class TradingService {
                 console.error('❌ Помилка створення ордера:', orderErr.message);
             }
 
-            // Збереження в історію угод
             if (order) {
                 await this.saveTradeHistory(parsedSignal, order);
             }
 
-            // Логування торгового сигналу
             await this.loggingService.logTradingSignal(
                 parsedSignal,
                 order,
@@ -54,7 +46,6 @@ class TradingService {
         } catch (error) {
             console.error('❌ Критична помилка обробки сигналу:', error);
 
-            // Логування критичної помилки
             await this.loggingService.logError(
                 'trading_signal_processing',
                 'Critical error processing trading signal',
@@ -69,9 +60,6 @@ class TradingService {
         }
     }
 
-    /**
-     * Збереження угоди в історію
-     */
     async saveTradeHistory(signal, order) {
         try {
             const result = await this.tradeHistoryModel.create({
@@ -87,23 +75,14 @@ class TradingService {
         }
     }
 
-    /**
-     * Отримання історії угод
-     */
     async getTradeHistory(limit = 100, filters = {}) {
         return this.tradeHistoryModel.getHistory(limit, filters);
     }
 
-    /**
-     * Отримання статистики угод
-     */
     async getTradeStats(filters = {}) {
         return this.tradeHistoryModel.getStats(filters);
     }
 
-    /**
-     * Створення ордера
-     */
     async createOrder({ exchange, market, side, amount, price, type = 'limit' }) {
         const exchangeConnector = this.exchanges[exchange];
 
@@ -113,17 +92,14 @@ class TradingService {
 
         let order;
         if (type === 'market') {
-            order = await exchangeConnector.createMarketOrder(market, side, amount);
+            order = await exchangeConnector.createSpotMarketOrder(market, side, amount);
         } else {
-            order = await exchangeConnector.createLimitOrder(market, side, amount, price);
+            order = await exchangeConnector.createSpotLimitOrder(market, side, amount, price);
         }
 
         return order;
     }
 
-    /**
-     * Скасування ордера
-     */
     async cancelOrder(exchange, market, orderId) {
         const exchangeConnector = this.exchanges[exchange];
 
@@ -131,12 +107,9 @@ class TradingService {
             throw new Error(`Exchange ${exchange} not found`);
         }
 
-        return exchangeConnector.cancelOrder(market, orderId);
+        return exchangeConnector.cancelSpotOrder(market, orderId);
     }
 
-    /**
-     * Отримання активних ордерів
-     */
     async getActiveOrders(exchange, market = null) {
         const exchangeConnector = this.exchanges[exchange];
 
@@ -144,10 +117,8 @@ class TradingService {
             throw new Error(`Exchange ${exchange} not found`);
         }
 
-        return exchangeConnector.getActiveOrders(market);
+        return exchangeConnector.getSpotActiveOrders(market);
     }
 }
 
 module.exports = TradingService;
-
-

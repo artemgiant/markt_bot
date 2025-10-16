@@ -1,0 +1,323 @@
+{
+  "info": {
+    "_postman_id": "whitebit-futures-test",
+    "name": "WhiteBit Futures - Market Order Test",
+    "description": "Тестування створення ф'ючерсних ринкових ордерів",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "1. Create Market Order (BUY) - Minimal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-TXC-APIKEY",
+            "value": "{{API_KEY}}",
+            "description": "Твій WhiteBit API ключ"
+          },
+          {
+            "key": "X-TXC-PAYLOAD",
+            "value": "{{PAYLOAD}}",
+            "description": "Base64 encoded request body"
+          },
+          {
+            "key": "X-TXC-SIGNATURE",
+            "value": "{{SIGNATURE}}",
+            "description": "HMAC SHA512 підпис"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"market\": \"BTC_USDT\",\n    \"side\": \"buy\",\n    \"amount\": \"0.001\",\n    \"request\": \"/api/v4/order/collateral/market\",\n    \"nonce\": {{$timestamp}}\n}"
+        },
+        "url": {
+          "raw": "https://whitebit.com/api/v4/order/collateral/market",
+          "protocol": "https",
+          "host": [
+            "whitebit",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v4",
+            "order",
+            "collateral",
+            "market"
+          ]
+        },
+        "description": "Мінімальний приклад: купити 0.001 BTC по ринковій ціні"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Create Market Order (SELL) - Minimal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-TXC-APIKEY",
+            "value": "{{API_KEY}}"
+          },
+          {
+            "key": "X-TXC-PAYLOAD",
+            "value": "{{PAYLOAD}}"
+          },
+          {
+            "key": "X-TXC-SIGNATURE",
+            "value": "{{SIGNATURE}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"market\": \"BTC_USDT\",\n    \"side\": \"sell\",\n    \"amount\": \"0.001\",\n    \"request\": \"/api/v4/order/collateral/market\",\n    \"nonce\": {{$timestamp}}\n}"
+        },
+        "url": {
+          "raw": "https://whitebit.com/api/v4/order/collateral/market",
+          "protocol": "https",
+          "host": [
+            "whitebit",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v4",
+            "order",
+            "collateral",
+            "market"
+          ]
+        },
+        "description": "Продати 0.001 BTC по ринковій ціні"
+      },
+      "response": []
+    },
+    {
+      "name": "3. Create Market Order - With StopLoss & TakeProfit",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-TXC-APIKEY",
+            "value": "{{API_KEY}}"
+          },
+          {
+            "key": "X-TXC-PAYLOAD",
+            "value": "{{PAYLOAD}}"
+          },
+          {
+            "key": "X-TXC-SIGNATURE",
+            "value": "{{SIGNATURE}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"market\": \"BTC_USDT\",\n    \"side\": \"buy\",\n    \"amount\": \"0.001\",\n    \"stopLoss\": \"65000\",\n    \"takeProfit\": \"75000\",\n    \"request\": \"/api/v4/order/collateral/market\",\n    \"nonce\": {{$timestamp}}\n}"
+        },
+        "url": {
+          "raw": "https://whitebit.com/api/v4/order/collateral/market",
+          "protocol": "https",
+          "host": [
+            "whitebit",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v4",
+            "order",
+            "collateral",
+            "market"
+          ]
+        },
+        "description": "Купити з автоматичним стоп-лосс та тейк-профіт"
+      },
+      "response": []
+    },
+    {
+      "name": "4. Create Market Order - LONG Position",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-TXC-APIKEY",
+            "value": "{{API_KEY}}"
+          },
+          {
+            "key": "X-TXC-PAYLOAD",
+            "value": "{{PAYLOAD}}"
+          },
+          {
+            "key": "X-TXC-SIGNATURE",
+            "value": "{{SIGNATURE}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"market\": \"BTC_USDT\",\n    \"side\": \"buy\",\n    \"amount\": \"0.001\",\n    \"positionSide\": \"LONG\",\n    \"clientOrderId\": \"my_order_{{$timestamp}}\",\n    \"request\": \"/api/v4/order/collateral/market\",\n    \"nonce\": {{$timestamp}}\n}"
+        },
+        "url": {
+          "raw": "https://whitebit.com/api/v4/order/collateral/market",
+          "protocol": "https",
+          "host": [
+            "whitebit",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v4",
+            "order",
+            "collateral",
+            "market"
+          ]
+        },
+        "description": "Відкрити LONG позицію з власним ID"
+      },
+      "response": []
+    },
+    {
+      "name": "5. Create Market Order - SHORT Position",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-TXC-APIKEY",
+            "value": "{{API_KEY}}"
+          },
+          {
+            "key": "X-TXC-PAYLOAD",
+            "value": "{{PAYLOAD}}"
+          },
+          {
+            "key": "X-TXC-SIGNATURE",
+            "value": "{{SIGNATURE}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"market\": \"BTC_USDT\",\n    \"side\": \"sell\",\n    \"amount\": \"0.001\",\n    \"positionSide\": \"SHORT\",\n    \"stopLoss\": \"72000\",\n    \"takeProfit\": \"66000\",\n    \"stp\": \"cancel_both\",\n    \"request\": \"/api/v4/order/collateral/market\",\n    \"nonce\": {{$timestamp}}\n}"
+        },
+        "url": {
+          "raw": "https://whitebit.com/api/v4/order/collateral/market",
+          "protocol": "https",
+          "host": [
+            "whitebit",
+            "com"
+          ],
+          "path": [
+            "api",
+            "v4",
+            "order",
+            "collateral",
+            "market"
+          ]
+        },
+        "description": "Відкрити SHORT позицію з усіма параметрами"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Via Bot API (Local)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"exchange\": \"whitebit\",\n    \"market\": \"BTC_USDT\",\n    \"side\": \"buy\",\n    \"amount\": \"0.001\",\n    \"clientOrderId\": \"test_order_{{$timestamp}}\"\n}"
+        },
+        "url": {
+          "raw": "http://localhost:3000/api/futures/order/market",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "3000",
+          "path": [
+            "api",
+            "futures",
+            "order",
+            "market"
+          ]
+        },
+        "description": "Тестування через твій локальний бот"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "API_KEY",
+      "value": "YOUR_WHITEBIT_API_KEY",
+      "type": "string"
+    },
+    {
+      "key": "SECRET_KEY",
+      "value": "YOUR_WHITEBIT_SECRET_KEY",
+      "type": "string"
+    },
+    {
+      "key": "PAYLOAD",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "SIGNATURE",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Автоматична генерація payload та signature",
+          "const apiSecret = pm.collectionVariables.get('SECRET_KEY');",
+          "const requestBody = pm.request.body.raw;",
+          "",
+          "if (apiSecret && requestBody) {",
+          "    // Base64 encode payload",
+          "    const payload = CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(requestBody));",
+          "    pm.collectionVariables.set('PAYLOAD', payload);",
+          "    ",
+          "    // Generate HMAC SHA512 signature",
+          "    const signature = CryptoJS.HmacSHA512(payload, apiSecret).toString();",
+          "    pm.collectionVariables.set('SIGNATURE', signature);",
+          "    ",
+          "    console.log('Payload:', payload);",
+          "    console.log('Signature:', signature);",
+          "} else {",
+          "    console.log('⚠️ Встанови API_KEY та SECRET_KEY в Collection Variables');",
+          "}"
+        ]
+      }
+    }
+  ]
+}
