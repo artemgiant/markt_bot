@@ -9,28 +9,31 @@ class TradingViewController {
     }
 
     /**
-     * Обробка вебхука від TradingView
+     * ============================================
+     * ПУБЛІЧНІ МЕТОДИ - Entry Points
+     * ============================================
      */
-    async handleWebhook(req, res) {
+
+    /**
+     * Обробка SPOT вебхука від TradingView
+     * POST /api/trading_view/spot
+     */
+    async handleSpotWebhook(req, res) {
         try {
-            console.log('📊 Отримано запит від TradingView');
+            console.log('📊 Отримано SPOT запит від TradingView');
             console.log('Method:', req.method);
             console.log('Body:', req.body);
-            console.log('Query:', req.query);
 
-            // Перевірка підключення до БД
-            if (!req.app.locals.db) {
-                console.error('❌ Database connection is not initialized');
-                return res.status(500).json({
-                    success: false,
-                    error: 'Database not available'
-                });
-            }
+            // Базова валідація
+            this._validateBaseRequest(req);
+
+            // Перевірка підключення до БД (тільки для spot)
+            this._validateDatabaseConnection(req);
 
             // Форматування даних запиту для логування
             const logData = TradingViewConnector.formatLogEntry(req, {
-                route: '/api/trading_view',
-                type: 'trading_view_request'
+                route: '/api/trading_view/spot',
+                type: 'spot_signal'
             });
 
             // Логування запиту в файл
@@ -41,8 +44,8 @@ class TradingViewController {
 
             // Логування основного запиту в БД
             await this.loggingService.logInfo(
-                'trading_view',
-                `TradingView ${result.signal.action} signal for ${result.signal.coinCode}`,
+                'trading_view_spot',
+                `TradingView SPOT ${result.signal.action} signal for ${result.signal.coinCode}`,
                 {
                     signal: result.signal,
                     order: result.order,
@@ -64,14 +67,12 @@ class TradingViewController {
                 false // Не логуємо в файл, вже залогували вище
             );
 
-            // Відповідь клієнту
-            res.json({
+            // Відправка відповіді
+            this._sendResponse(res, {
                 success: result.success,
-                status: result.success ? 'success' : 'failed',
                 message: result.order
                     ? 'Order created and logged successfully'
                     : 'Signal received but order failed',
-                timestamp: getCurrentISODate(),
                 data: {
                     signal: result.signal,
                     order: result.order,
@@ -84,10 +85,107 @@ class TradingViewController {
             });
 
         } catch (error) {
-            console.error('❌ Критична помилка обробки запиту:', error);
-            console.error('Stack trace:', error.stack);
+            this._handleError(res, error, req);
+        }
+    }
 
-            // Спроба записати помилку в БД
+    /**
+     * Обробка FUTURES вебхука від TradingView
+     * POST /api/trading_view/futures
+     */
+    async handleFuturesWebhook(req, res) {
+        try {
+            console.log('📊 Отримано FUTURES запит від TradingView');
+            console.log('Method:', req.method);
+            console.log('Body:', req.body);
+
+            // Базова валідація
+            this._validateBaseRequest(req);
+
+            // Специфічна валідація для futures (поки пуста)
+            this._validateFuturesRequirements(req);
+
+            // Обробка futures сигналу через сервіс
+            const result = await this.tradingService.processFuturesSignal(req.body);
+
+            // Відправка відповіді
+            this._sendResponse(res, {
+                success: result.success,
+                message: 'Futures signal received and parsed',
+                data: {
+                    signal: result.signal
+                }
+            });
+
+        } catch (error) {
+            this._handleError(res, error, req);
+        }
+    }
+
+    /**
+     * ============================================
+     * ПРИВАТНІ МЕТОДИ - Helpers (Варіант B)
+     * ============================================
+     */
+
+    /**
+     * Базова валідація запиту
+     * Перевіряє наявність та коректність req.body
+     */
+    _validateBaseRequest(req) {
+        if (!req.body) {
+            throw new Error('Request body is missing');
+        }
+
+        const bodyString = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+
+        if (!bodyString || bodyString.trim() === '' || bodyString === '{}') {
+            throw new Error('Request body is empty');
+        }
+    }
+
+    /**
+     * Валідація підключення до бази даних
+     * Використовується тільки для SPOT сигналів
+     */
+    _validateDatabaseConnection(req) {
+        if (!req.app.locals.db) {
+            console.error('❌ Database connection is not initialized');
+            throw new Error('Database not available');
+        }
+    }
+
+    /**
+     * Специфічна валідація для FUTURES
+     * На даному етапі - порожня, залишена для майбутніх розширень
+     */
+    _validateFuturesRequirements(req) {
+        // Поки що немає специфічних вимог для futures
+        // Метод залишений для можливості додавання перевірок в майбутньому
+    }
+
+    /**
+     * Відправка успішної відповіді клієнту
+     */
+    _sendResponse(res, result) {
+        res.json({
+            success: result.success,
+            status: result.success ? 'success' : 'failed',
+            message: result.message,
+            timestamp: getCurrentISODate(),
+            data: result.data
+        });
+    }
+
+    /**
+     * Обробка та відправка помилки клієнту
+     */
+    async _handleError(res, error, req) {
+        console.error('❌ Критична помилка обробки запиту:', error);
+        console.error('Stack trace:', error.stack);
+
+        // Спроба записати помилку в БД (тільки якщо БД доступна)
+        if (req.app.locals.db) {
             try {
                 await this.loggingService.logError(
                     'trading_view_error',
@@ -106,15 +204,16 @@ class TradingViewController {
             } catch (dbError) {
                 console.error('❌ Не вдалося записати помилку в БД:', dbError.message);
             }
-
-            res.status(500).json({
-                success: false,
-                status: 'error',
-                message: 'Failed to process request',
-                error: error.message,
-                timestamp: getCurrentISODate()
-            });
         }
+
+        // Відправка помилки клієнту
+        res.status(500).json({
+            success: false,
+            status: 'error',
+            message: 'Failed to process request',
+            error: error.message,
+            timestamp: getCurrentISODate()
+        });
     }
 }
 

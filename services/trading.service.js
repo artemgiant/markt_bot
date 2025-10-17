@@ -1,3 +1,4 @@
+// services/trading.service.js
 const TradingViewConnector = require('../connectors/trading_view');
 
 class TradingService {
@@ -7,6 +8,9 @@ class TradingService {
         this.loggingService = loggingService;
     }
 
+    /**
+     * Обробка SPOT сигналу від TradingView
+     */
     async processTradingViewSignal(rawSignal, amount = 6) {
         let order = null;
         let orderError = null;
@@ -38,7 +42,7 @@ class TradingService {
             );
 
             return {
-                success: !!order,
+                success: !orderError,
                 signal: parsedSignal,
                 order: order,
                 error: orderError
@@ -56,6 +60,28 @@ class TradingService {
                 }
             );
 
+            throw error;
+        }
+    }
+
+    /**
+     * Обробка FUTURES сигналу від TradingView
+     * На цьому етапі - тільки парсинг та вивід в консоль
+     */
+    async processFuturesSignal(rawSignal) {
+        try {
+            // Парсинг futures сигналу
+            const parsedSignal = TradingViewConnector.parseSignalFutures(rawSignal);
+
+            // Вивід в консоль з красивим форматуванням
+            TradingViewConnector.debugSignal(parsedSignal);
+
+            return {
+                success: true,
+                signal: parsedSignal
+            };
+        } catch (error) {
+            console.error('❌ Помилка обробки futures сигналу:', error);
             throw error;
         }
     }

@@ -1,11 +1,15 @@
+// connectors/trading_view.js
 const http = require('http');
 const url = require('url');
 const {static} = require("express");
 
 
 class TradingViewConnector {
-// Функція для парсингу сигналу
-    static  parseSignalFutures(signalString) {
+    /**
+     * Парсинг FUTURES сигналу
+     * Формат: ENTER-LONG_BINANCE_SOLUSDT_BOT-NAME-ENBIiG_5M_e5009c...
+     */
+    static parseSignalFutures(signalString) {
         const cleanSignal = signalString.trim();
         const parts = cleanSignal.split('_');
 
@@ -39,20 +43,20 @@ class TradingViewConnector {
             action: action,              // ENTER/EXIT
             positionType: type,          // LONG/SHORT/ALL
             exchange: parts[1],          // BINANCE
-            coinCode: parts[2],          // MYXUSDT
-            botName: parts[3],           // BOT-NAME-ENBIIG
-            timeframe: parts[4],         // 1M
-            hash: parts[5] || '',        // хеш (якщо є)
+            coinCode: parts[2].replace('-','_'),          // SOLUSDT
+            botName: parts[3],           // BOT-NAME-ENBIiG
+            timeframe: parts[4],         // 5M
+            hash: parts[5] || '',        // e5009c... (якщо є)
             originalSignal: cleanSignal
         };
     }
 
-
-
-    static  parseSignalSpot(signalString) {
-
-
-       // signalString = "BUY_BINANCE_DBTC-DUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0";
+    /**
+     * Парсинг SPOT сигналу
+     * Формат: BUY_BINANCE_BTCUSDT_BOT-NAME-ENBIiG_1M_e5009c...
+     */
+    static parseSignalSpot(signalString) {
+        // signalString = "BUY_BINANCE_DBTC-DUSDT_BOT-NAME-ENBIiG_1M_e5009c035e87043ed06ccde0";
 
         const cleanSignal = signalString.trim();
         const parts = cleanSignal.split('_');
@@ -61,70 +65,61 @@ class TradingViewConnector {
             throw new Error(`Невірний формат сигналу. Отримано ${parts.length} частин, очікується мінімум 5`);
         }
 
-
         return {
-            action: parts[0].toLocaleLowerCase(),              // sell/bay
-            exchange: parts[1],          // BINANCE
-            coinCode: parts[2].replace('-','_'),          // MYXUSDT
-            botName: parts[3],           // BOT-NAME-ENBIIG
-            timeframe: parts[4],         // 1M
-            hash: parts[5] || '',        // хеш (якщо є)
+            action: parts[0].toLowerCase(),              // sell/buy
+            exchange: parts[1],                          // BINANCE
+            coinCode: parts[2].replace('-','_'),        // BTCUSDT
+            botName: parts[3],                           // BOT-NAME-ENBIiG
+            timeframe: parts[4],                         // 1M
+            hash: parts[5] || '',                        // хеш (якщо є)
             originalSignal: cleanSignal
         };
     }
 
-
-   static  debugSignal(parsedSignal) {
-        try {
-
-
-            console.log('\n--- РОЗПАРСЕНИЙ СИГНАЛ ---');
-            console.log('🎯 Дія:', parsedSignal.action);
-            console.log('📈 Тип позиції:', parsedSignal.positionType);
-            console.log('🏢 Біржа:', parsedSignal.exchange);
-            console.log('💰 Код монети:', parsedSignal.coinCode);
-            console.log('🤖 Назва бота:', parsedSignal.botName);
-            console.log('⏰ Таймфрейм:', parsedSignal.timeframe);
-            if (parsedSignal.hash) {
-                console.log('🔗 Хеш:', parsedSignal.hash);
-            }
-
-            // Логіка обробки сигналів
-            console.log('\n--- ДІЯ ---');
-            if (parsedSignal.action === 'ENTER') {
-                if (parsedSignal.positionType === 'LONG') {
-                    console.log('✅ ВІДКРИВАЄМО ЛОНГ ПОЗИЦІЮ');
-                } else if (parsedSignal.positionType === 'SHORT') {
-                    console.log('✅ ВІДКРИВАЄМО ШОРТ ПОЗИЦІЮ');
-                }
-            } else if (parsedSignal.action === 'EXIT') {
-                if (parsedSignal.positionType === 'LONG') {
-                    console.log('❌ ЗАКРИВАЄМО ЛОНГ ПОЗИЦІЮ');
-                } else if (parsedSignal.positionType === 'SHORT') {
-                    console.log('❌ ЗАКРИВАЄМО ШОРТ ПОЗИЦІЮ');
-                } else if (parsedSignal.positionType === 'ALL') {
-                    console.log('❌ ЗАКРИВАЄМО ВСІ ПОЗИЦІЇ');
-                }
-            }
-
-            console.log('=====================================\n');
-        }catch(err) {
-            console.error('❌ Помилка обробки сигналу:', error.message);
-
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                status: 'error',
-                message: error.message
-            }));
+    /**
+     * Вивід детальної інформації про розпарсений FUTURES сигнал в консоль
+     */
+    static debugSignal(parsedSignal) {
+        console.log('\n📊 ============================================');
+        console.log('📊 FUTURES SIGNAL RECEIVED');
+        console.log('📊 ============================================');
+        console.log('   Action:     ', parsedSignal.action);
+        console.log('   Direction:  ', parsedSignal.positionType);
+        console.log('   Exchange:   ', parsedSignal.exchange);
+        console.log('   Symbol:     ', parsedSignal.coinCode);
+        console.log('   Bot Name:   ', parsedSignal.botName);
+        console.log('   Timeframe:  ', parsedSignal.timeframe);
+        if (parsedSignal.hash) {
+            console.log('   Hash:       ', parsedSignal.hash);
         }
+        console.log('📊 ============================================');
 
+        // Логіка інтерпретації сигналу
+        if (parsedSignal.action === 'ENTER') {
+            if (parsedSignal.positionType === 'LONG') {
+                console.log('   ✅ ВІДКРИВАЄМО ЛОНГ ПОЗИЦІЮ');
+            } else if (parsedSignal.positionType === 'SHORT') {
+                console.log('   ✅ ВІДКРИВАЄМО ШОРТ ПОЗИЦІЮ');
+            }
+        } else if (parsedSignal.action === 'EXIT') {
+            if (parsedSignal.positionType === 'LONG') {
+                console.log('   ❌ ЗАКРИВАЄМО ЛОНГ ПОЗИЦІЮ');
+            } else if (parsedSignal.positionType === 'SHORT') {
+                console.log('   ❌ ЗАКРИВАЄМО ШОРТ ПОЗИЦІЮ');
+            } else if (parsedSignal.positionType === 'ALL') {
+                console.log('   ❌ ЗАКРИВАЄМО ВСІ ПОЗИЦІЇ');
+            }
+        }
+        console.log('📊 ============================================\n');
     }
 
-    // Функція для форматування лог-записів
+    /**
+     * Форматування лог-записів для SPOT сигналів
+     */
     static formatLogEntry(req, additionalData = {}) {
         const timestamp = new Date().toISOString();
 
-         const parsedSignal = this.parseSignalSpot(req.body)
+        const parsedSignal = this.parseSignalSpot(req.body);
 
         const logEntry = {
             timestamp,
@@ -142,9 +137,6 @@ class TradingViewConnector {
 
         return JSON.stringify(logEntry, null, 2) + ',\n';
     }
-
 }
 
-
 module.exports = TradingViewConnector;
-
