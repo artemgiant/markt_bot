@@ -64,17 +64,7 @@ class LoggingService {
             database: null
         };
 
-        // Логування в файл
-        if (logToFile) {
-            results.file = await this.logToFile({
-                timestamp: getCurrentISODate(),
-                level,
-                category,
-                message,
-                details,
-                type
-            }, type || 'log');
-        }
+
 
         // Логування в БД
         results.database = await this.logToDB({
@@ -128,7 +118,7 @@ class LoggingService {
     async logTradingSignal(signal, order, error = null) {
         return this.log({
             level: error ? 'error' : 'info',
-            category: 'trading_signal',
+            category: 'trading_signal_spot',
             message: `${signal.action} ${signal.coinCode} - ${order ? 'Success' : 'Failed'}`,
             details: {
                 signal,
@@ -136,7 +126,7 @@ class LoggingService {
                 error,
                 success: !!order
             },
-            type: 'trading_signal',
+            type: 'trading_signal_spot',
             logToFile: true
         });
     }

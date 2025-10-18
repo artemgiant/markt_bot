@@ -137,6 +137,31 @@ class TradingViewConnector {
 
         return JSON.stringify(logEntry, null, 2) + ',\n';
     }
+
+    /**
+     * Форматування лог-записів для FUTURES сигналів
+     */
+    static formatLogEntryFutures(req, additionalData = {}) {
+        const timestamp = new Date().toISOString();
+
+        const parsedSignal = this.parseSignalFutures(req.body);
+
+        const logEntry = {
+            timestamp,
+            method: req.method,
+            url: req.url,
+            headers: req.headers,
+            query: req.query,
+            body: req.body,
+            params: req.params,
+            ip: req.ip || req.connection.remoteAddress,
+            userAgent: req.get('User-Agent'),
+            ...additionalData,
+            parsedSignal
+        };
+
+        return JSON.stringify(logEntry, null, 2) + ',\n';
+    }
 }
 
 module.exports = TradingViewConnector;

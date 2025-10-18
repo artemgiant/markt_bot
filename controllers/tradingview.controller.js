@@ -105,15 +105,50 @@ class TradingViewController {
             // Специфічна валідація для futures (поки пуста)
             this._validateFuturesRequirements(req);
 
+            // Форматування даних запиту для логування
+            const logData = TradingViewConnector.formatLogEntryFutures(req, {
+                route: '/api/trading_view/futures',
+                type: 'futures_signal'
+            });
+
+            // Логування запиту в файл
+            await this.loggingService.logToFile(logData, 'trading_view_logs');
+
             // Обробка futures сигналу через сервіс
             const result = await this.tradingService.processFuturesSignal(req.body);
+
+            // Логування основного запиту в БД (в ту саму таблицю system_logs)
+            await this.loggingService.logInfo(
+                'trading_view_futures',
+                `TradingView FUTURES ${result.signal.action}-${result.signal.positionType} signal for ${result.signal.coinCode}`,
+                {
+                    signal: result.signal,
+                    request: {
+                        method: req.method,
+                        url: req.url,
+                        body: req.body,
+                        query: req.query,
+                        ip: req.ip,
+                        headers: {
+                            'content-type': req.headers['content-type'],
+                            'user-agent': req.headers['user-agent']
+                        }
+                    },
+                    timestamp: getCurrentISODate()
+                },
+                false // Не логуємо в файл, вже залогували вище
+            );
 
             // Відправка відповіді
             this._sendResponse(res, {
                 success: result.success,
-                message: 'Futures signal received and parsed',
+                message: 'Futures signal received and logged',
                 data: {
-                    signal: result.signal
+                    signal: result.signal,
+                    logged: {
+                        file: true,
+                        database: true
+                    }
                 }
             });
 
@@ -170,49 +205,43 @@ class TradingViewController {
     _sendResponse(res, result) {
         res.json({
             success: result.success,
-            status: result.success ? 'success' : 'failed',
+            status: result.success ? 'ok' : 'error',
             message: result.message,
-            timestamp: getCurrentISODate(),
             data: result.data
         });
     }
 
     /**
-     * Обробка та відправка помилки клієнту
+     * Обробка помилок та відправка відповіді
      */
     async _handleError(res, error, req) {
-        console.error('❌ Критична помилка обробки запиту:', error);
-        console.error('Stack trace:', error.stack);
+        console.error('❌ Помилка обробки запиту:', error.message);
 
-        // Спроба записати помилку в БД (тільки якщо БД доступна)
-        if (req.app.locals.db) {
-            try {
-                await this.loggingService.logError(
-                    'trading_view_error',
-                    'Critical error processing TradingView webhook',
-                    {
-                        error: error.message,
-                        stack: error.stack,
-                        request: {
-                            method: req.method,
-                            url: req.url,
-                            body: req.body
-                        },
-                        timestamp: getCurrentISODate()
-                    }
-                );
-            } catch (dbError) {
-                console.error('❌ Не вдалося записати помилку в БД:', dbError.message);
-            }
+        // Логування помилки
+        try {
+            await this.loggingService.logError(
+                'tradingview_webhook_error',
+                error.message,
+                {
+                    stack: error.stack,
+                    request: {
+                        method: req.method,
+                        url: req.url,
+                        body: req.body,
+                        query: req.query,
+                        ip: req.ip
+                    },
+                    timestamp: getCurrentISODate()
+                }
+            );
+        } catch (logError) {
+            console.error('❌ Помилка логування:', logError.message);
         }
 
-        // Відправка помилки клієнту
-        res.status(500).json({
+        res.status(400).json({
             success: false,
             status: 'error',
-            message: 'Failed to process request',
-            error: error.message,
-            timestamp: getCurrentISODate()
+            error: error.message
         });
     }
 }

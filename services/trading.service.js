@@ -88,6 +88,11 @@ class TradingService {
 
     async saveTradeHistory(signal, order) {
         try {
+            // Перевірка наявності обов'язкових полів
+            if (!order.market) {
+                throw new Error('Order object missing required field: market');
+            }
+
             const result = await this.tradeHistoryModel.create({
                 signal,
                 order
@@ -97,6 +102,7 @@ class TradingService {
             return result;
         } catch (error) {
             console.error('❌ Помилка збереження угоди:', error.message);
+            console.error('Order object:', JSON.stringify(order, null, 2));
             throw error;
         }
     }
