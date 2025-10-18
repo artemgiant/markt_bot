@@ -19,6 +19,7 @@ class TradingViewConnector {
 
         let action = '';
         let type = '';
+        let side;
 
         if (parts[0].includes('ENTER-LONG')) {
             action = 'ENTER';
@@ -39,11 +40,24 @@ class TradingViewConnector {
             throw new Error(`Невідомий тип дії: ${parts[0]}`);
         }
 
+
+        if (action === 'ENTER' && type === 'LONG') {
+            side = 'buy';  // Відкриваємо Long позицію = купуємо
+            } else if (action === 'ENTER' && type === 'SHORT') {
+            side = 'sell'; // Відкриваємо Short позицію = продаємо
+        } else if (action === 'EXIT' && type === 'LONG') {
+            side = 'sell'; // Закриваємо Long позицію = продаємо
+        } else if (action === 'EXIT' && type === 'SHORT') {
+            side = 'buy';  // Закриваємо Short позицію = купуємо
+        }
+
+
         return {
             action: action,              // ENTER/EXIT
             positionType: type,          // LONG/SHORT/ALL
+            side: side,   // sell
             exchange: parts[1],          // BINANCE
-            coinCode: parts[2].replace('-','_'),          // SOLUSDT
+            coinCode: parts[2].replace('-','_'),          // SOL_USDT
             botName: parts[3],           // BOT-NAME-ENBIiG
             timeframe: parts[4],         // 5M
             hash: parts[5] || '',        // e5009c... (якщо є)

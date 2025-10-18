@@ -6,8 +6,9 @@ class TradingViewController {
     constructor(services) {
         this.tradingService = services.trading;
         this.loggingService = services.logging;
+        this.exchangeService = services.exchange;
     }
-
+    static TRADE_AMOUNT = 0.04;
     /**
      * ============================================
      * ПУБЛІЧНІ МЕТОДИ - Entry Points
@@ -138,6 +139,32 @@ class TradingViewController {
                 },
                 false // Не логуємо в файл, вже залогували вище
             );
+
+
+
+
+            const connector = this.exchangeService.getConnector('whitebit');
+
+            if (!connector) {
+                console.error('❌ WhiteBit connector не підключено');
+            } else {
+
+                try {
+
+                    // Створюємо ринковий ордер на біржі
+                    const orderResult = await connector.createCollateralMarketOrder(
+                        result.signal.coinCode,              // market: "SOL_USDT"
+                        result.signal.side,                              // side: "buy" або "sell"
+                        TradingViewController.TRADE_AMOUNT // amount: константа 10
+                    );
+
+                    console.log(orderResult)
+                }catch(orderError) {
+                    console.error('❌ Помилка створення ордера на біржі:', orderError.message);
+                }
+            }
+
+
 
             // Відправка відповіді
             this._sendResponse(res, {
