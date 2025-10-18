@@ -7,6 +7,7 @@ class TradingViewController {
         this.tradingService = services.trading;
         this.loggingService = services.logging;
         this.exchangeService = services.exchange;
+        this.tradeHistoryModel = services.trading.tradeHistoryModel;
     }
     static TRADE_AMOUNT = 0.04;
     /**
@@ -95,6 +96,8 @@ class TradingViewController {
      * POST /api/trading_view/futures
      */
     async handleFuturesWebhook(req, res) {
+
+
         try {
             console.log('📊 Отримано FUTURES запит від TradingView');
             console.log('Method:', req.method);
@@ -117,6 +120,10 @@ class TradingViewController {
 
             // Обробка futures сигналу через сервіс
             const result = await this.tradingService.processFuturesSignal(req.body);
+
+
+
+
 
             // Логування основного запиту в БД (в ту саму таблицю system_logs)
             await this.loggingService.logInfo(
@@ -158,7 +165,44 @@ class TradingViewController {
                         TradingViewController.TRADE_AMOUNT // amount: константа 10
                     );
 
-                    console.log(orderResult)
+                    // const orderResult = {
+                    //     orderId: 1825725014975,
+                    //     clientOrderId: '',
+                    //     market: 'SOL_USDT',
+                    //     side: 'buy',
+                    //     type: 'margin market',
+                    //     timestamp: 1760798847.814476,
+                    //     dealMoney: '7.427752',
+                    //     dealStock: '0.04',
+                    //     amount: '0.04',
+                    //     left: '0',
+                    //     dealFee: '0.007427752',
+                    //     ioc: false,
+                    //     status: 'FILLED',
+                    //     postOnly: false,
+                    //     stp: 'no'
+                    // };
+
+
+
+
+                    // Виводимо результат в консоль
+                    console.log('✅ Ордер успішно створено:', orderResult);
+
+                    // Зберігаємо результат ордера в базу даних через модель
+                    try {
+                        const savedTrade = await this.tradeHistoryModel.create({
+                            signal: result.signal,  // Передаємо розпарсений сигнал
+                            order: orderResult      // Передаємо відповідь від біржі
+                        });
+
+                        console.log('💾 Угоду збережено в БД, ID:', savedTrade.id);
+                    } catch (dbError) {
+                        // Якщо помилка збереження в БД - логуємо, але не зупиняємо процес
+                        console.error('❌ Помилка збереження в БД:', dbError.message);
+                    }
+
+
                 }catch(orderError) {
                     console.error('❌ Помилка створення ордера на біржі:', orderError.message);
                 }
