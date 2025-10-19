@@ -58,8 +58,8 @@ class WhiteBitConnector {
                     config.data = params;
                 }
             }
-
             const response = await axios(config);
+
             return response.data;
         } catch (error) {
 
@@ -100,10 +100,13 @@ class WhiteBitConnector {
         }
     }
 
-    async getTickers(market = null) {
+    async getTickers() {
         try {
-            const params = market ? { market } : {};
-            const response = await this.makeRequest('GET', '/public/ticker', params);
+
+            console.log("getTickers");
+            const response = await this.makeRequest('GET', '/public/ticker');
+
+
             return response;
         } catch (error) {
             throw new Error(`Помилка отримання тікерів: ${error.message}`);
@@ -272,7 +275,11 @@ class WhiteBitConnector {
     async getCollateralPositions(market = null) {
         try {
             const params = market ? { market } : {};
-            const response = await this.makeRequest('POST', '/collateral-account/positions', params, true);
+
+
+            const response = await this.makeRequest('POST', '/collateral-account/positions/open', params, true);
+
+
             return response;
         } catch (error) {
             throw new Error(`Помилка отримання ф'ючерсних позицій: ${error.message}`);

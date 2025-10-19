@@ -150,11 +150,16 @@ class ExchangeService {
         }
 
         try {
-            return await connector.getTickers(market);
+             const tickers =  await connector.getTickers();
+            if (market) {
+                return tickers[market] ;
+            }
+            return tickers;
         } catch (error) {
             throw new Error(`Помилка отримання тікерів: ${error.message}`);
         }
     }
+
 
     /**
      * Отримання торгових пар

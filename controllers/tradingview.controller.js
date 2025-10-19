@@ -9,7 +9,6 @@ class TradingViewController {
         this.exchangeService = services.exchange;
         this.tradeHistoryModel = services.trading.tradeHistoryModel;
     }
-    static TRADE_AMOUNT = 0.04;
     /**
      * ============================================
      * ПУБЛІЧНІ МЕТОДИ - Entry Points
@@ -99,6 +98,8 @@ class TradingViewController {
 
 
         try {
+
+
             console.log('📊 Отримано FUTURES запит від TradingView');
             console.log('Method:', req.method);
             console.log('Body:', req.body);
@@ -120,8 +121,6 @@ class TradingViewController {
 
             // Обробка futures сигналу через сервіс
             const result = await this.tradingService.processFuturesSignal(req.body);
-
-
 
 
 
@@ -149,7 +148,6 @@ class TradingViewController {
 
 
 
-
             const connector = this.exchangeService.getConnector('whitebit');
 
             if (!connector) {
@@ -158,20 +156,35 @@ class TradingViewController {
 
                 try {
 
+                   let   amount_coin = 0;
+
+
+                    if (result.signal.side === 'buy') {
+                        const {last_price} = await this.exchangeService.getTickers("whitebit", result.signal.coinCode);
+                        const amount_USDT = 5.5;
+                        amount_coin = Math.trunc((amount_USDT / last_price) * 1000) / 1000;
+
+                    } else if (result.signal.side === 'sell') {
+
+                        const positions = await connector.getCollateralPositions(result.signal.coinCode);
+                        amount_coin = positions[0]['amount'];
+
+                    }
+
                     // Створюємо ринковий ордер на біржі
                     const orderResult = await connector.createCollateralMarketOrder(
                         result.signal.coinCode,              // market: "SOL_USDT"
                         result.signal.side,                              // side: "buy" або "sell"
-                        TradingViewController.TRADE_AMOUNT // amount: константа 10
+                        amount_coin
                     );
 
                     // const orderResult = {
-                    //     orderId: 1825725014975,
+                    //     orderId: Date.now() ,
                     //     clientOrderId: '',
                     //     market: 'SOL_USDT',
                     //     side: 'buy',
                     //     type: 'margin market',
-                    //     timestamp: 1760798847.814476,
+                    //     timestamp:  Date.now() ,
                     //     dealMoney: '7.427752',
                     //     dealStock: '0.04',
                     //     amount: '0.04',
@@ -230,9 +243,10 @@ class TradingViewController {
 
     /**
      * ============================================
-     * ПРИВАТНІ МЕТОДИ - Helpers (Варіант B)
+     * ПРИВАТНІ МЕТОДИ - Helpers
      * ============================================
      */
+
 
     /**
      * Базова валідація запиту
