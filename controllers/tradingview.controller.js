@@ -161,7 +161,7 @@ class TradingViewController {
 
                     if (result.signal.side === 'buy') {
                         const {last_price} = await this.exchangeService.getTickers("whitebit", result.signal.coinCode);
-                        const amount_USDT = 5.5;
+                        const amount_USDT = 100;
                         amount_coin = Math.trunc((amount_USDT / last_price) * 1000) / 1000;
 
                     } else if (result.signal.side === 'sell') {
