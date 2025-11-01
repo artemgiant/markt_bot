@@ -3,7 +3,7 @@
 echo "🚀 Starting deployment for trading-bot..."
 
 # Перейти в директорію проєкту
-cd /root/trading-bot || exit
+cd /var/www/trading-bot || exit
 
 echo "📦 Git repository update..."
 

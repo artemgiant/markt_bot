@@ -216,7 +216,7 @@ dev-whitebit:
 # Змінні для підключення до сервера
 SERVER_USER := root
 SERVER_HOST := 164.92.139.111
-SERVER_PATH := /var/www/crm-developer.pro
+SERVER_PATH := /var/www/trading-bot
 SSH_KEY := ~/.ssh/id_rsa
 DEPLOY_SCRIPT := deploy.sh
 
