@@ -1,0 +1,93 @@
+//@version=6
+strategy("Volatility Coin Strategy $100 Fixed", overlay=true, margin_long=100, margin_short=100, pyramiding=1)
+
+// Вхідні параметри
+stopLossPerc = input.float(2.0, title="Stop Loss %") / 100
+takeProfitPerc = input.float(1.5, title="Take Profit %") / 100
+positionSizeUSD = input.float(100, title="Position Size (USD)")
+lookbackPeriod = input.int(10, title="Lookback Period for Extremums")  // Зменшили для більше сигналів
+rsiLength = input.int(14, title="RSI Length")
+rsiOverbought = input.int(65, title="RSI Overbought")  // Знизили рівні
+rsiOversold = input.int(35, title="RSI Oversold")     // Підвищили рівні
+daysBack = input.int(20, title="Trading Period (Days)")
+
+// Функція для визначення періоду торгівлі (останні 20 днів)
+isTradingPeriod() =>
+    startDate = timestamp(year(timenow), month(timenow), dayofmonth(timenow) - daysBack, 0, 0)
+    time >= startDate
+
+// ПОКРАЩЕНІ функції для визначення локальних екстремумів
+isLocalLow() =>
+    ta.lowest(low, lookbackPeriod) == low
+
+isLocalHigh() =>
+    ta.highest(high, lookbackPeriod) == high
+
+// Альтернативний більш простий підхід для екстремумів
+isLocalLowAlt() =>
+    low < low[1] and low < low[2] and low[1] < low[2]
+
+isLocalHighAlt() =>
+    high > high[1] and high > high[2] and high[1] > high[2]
+
+// Розрахунок індикаторів
+rsi = ta.rsi(close, rsiLength)
+
+// ПОКРАЩЕНІ умови для входу - більш гнучкі
+longCondition = (isLocalLow() or isLocalLowAlt()) and rsi < rsiOverbought  // Змінили умову
+shortCondition = (isLocalHigh() or isLocalHighAlt()) and rsi > rsiOversold  // Змінили умову
+
+// Додаткові фільтри
+volumeFilter = volume > ta.sma(volume, 20)  // Фільтр об'єму
+
+// Розрахунок кількості монет для позиції в $100
+positionSizeCoins = positionSizeUSD / close
+
+// Розрахунок цін для стоп-лосу та тейк-профіту
+longStopPrice = close * (1 - stopLossPerc)
+longTakeProfit = close * (1 + takeProfitPerc)
+
+shortStopPrice = close * (1 + stopLossPerc)
+shortTakeProfit = close * (1 - takeProfitPerc)
+
+// ДЕБАГ - виведення значень для перевірки
+plotchar(isLocalLow(), "Local Low", "▲", location.belowbar, color.green, size=size.tiny)
+plotchar(isLocalHigh(), "Local High", "▼", location.abovebar, color.red, size=size.tiny)
+plotchar(longCondition, "Long Cond", "L", location.belowbar, color.lime, size=size.tiny)
+plotchar(shortCondition, "Short Cond", "S", location.abovebar, color.orange, size=size.tiny)
+
+// Стратегія (тільки за останні 20 днів)
+if (isTradingPeriod())
+    if (longCondition and volumeFilter)
+        strategy.entry("Long", strategy.long, qty=positionSizeCoins)
+        strategy.exit("Long Exit", "Long", stop=longStopPrice, limit=longTakeProfit)
+
+    if (shortCondition and volumeFilter)
+        strategy.entry("Short", strategy.short, qty=positionSizeCoins)
+        strategy.exit("Short Exit", "Short", stop=shortStopPrice, limit=shortTakeProfit)
+
+// Візуалізація
+bgcolor(isTradingPeriod() ? color.new(color.gray, 95) : na)
+
+// Відображення точок входу
+plotshape(longCondition and isTradingPeriod() and volumeFilter ? low * 0.998 : na,
+     style=shape.triangleup, location=location.belowbar, color=color.green, size=size.normal,
+     text="BUY")
+
+plotshape(shortCondition and isTradingPeriod() and volumeFilter ? high * 1.002 : na,
+     style=shape.triangledown, location=location.abovebar, color=color.red, size=size.normal,
+     text="SELL")
+
+// Інформаційна панель
+var table infoTable = table.new(position.top_right, 4, 1, bgcolor=color.white, border_width=1)
+if barstate.islast
+    table.cell(infoTable, 0, 0, "Trades: " + str.tostring(strategy.closedtrades), text_color=color.black)
+    table.cell(infoTable, 1, 0, "Win Rate: " + str.tostring(strategy.wintrades/math.max(1, strategy.closedtrades)*100, "#.##") + "%", text_color=color.black)
+    table.cell(infoTable, 2, 0, "PnL: $" + str.tostring(strategy.netprofit, "#.##"), text_color=color.black)
+    table.cell(infoTable, 3, 0, "Position: $" + str.tostring(positionSizeUSD), text_color=color.black)
+
+// Додаткові дебаг-повідомлення
+var debugLabel = label.new(x=bar_index, y=na, text="", style=label.style_label_left, color=color.new(color.blue, 90))
+if barstate.islast
+    label.set_xy(debugLabel, bar_index, low * 0.95)
+    label.set_text(debugLabel, "DEBUG INFO:\n" + "RSI: " + str.tostring(rsi, "#.##") + "\n" +   "Local Low: " + str.tostring(isLocalLow()) + "\n" +   "Local High: " + str.tostring(isLocalHigh()) + "\n" + "In Trading Period: " + str.tostring(isTradingPeriod()))

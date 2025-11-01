@@ -1,0 +1,222 @@
+//@version=6
+strategy("Volatility Strategy with Price Zones", overlay=true, margin_long=100, margin_short=100, pyramiding=0, commission_type=strategy.commission.percent, commission_value=0.1)
+
+// Вхідні параметри
+stopLossPerc = input.float(8.0, title="Stop Loss %") / 100
+takeProfitPerc = input.float(1.5, title="Take Profit %") / 100
+positionSizeUSD = input.float(100, title="Position Size (USD)")
+lookbackPeriod = input.int(10, title="Lookback Period for Extremums")
+rsiLength = input.int(14, title="RSI Length")
+rsiOverbought = input.int(65, title="RSI Overbought")
+rsiOversold = input.int(35, title="RSI Oversold")
+daysBack = input.int(20, title="Trading Period (Days)")
+
+// НОВІ ПАРАМЕТРИ ДЛЯ ЦІНОВИХ ЗОН
+upperPrice = input.float(210, title="Верхня ціна", minval=0)
+lowerPrice = input.float(184, title="Нижня ціна", minval=0)
+zoneStrength = input.float(0.7, title="Сила впливу зони", minval=0.1, maxval=1.0)
+
+// Функція для визначення періоду торгівлі
+isTradingPeriod() =>
+    startDate = timestamp(year(timenow), month(timenow), dayofmonth(timenow) - daysBack, 0, 0)
+    time >= startDate
+
+// Функції для екстремумів
+isLocalLow() =>
+    ta.lowest(low, lookbackPeriod) == low
+
+isLocalHigh() =>
+    ta.highest(high, lookbackPeriod) == high
+
+// НОВА ФУНКЦІЯ - ВИЗНАЧЕННЯ ПОЛОЖЕННЯ ВІДНОСНО ЗОН
+getZonePosition() =>
+    middlePrice = (upperPrice + lowerPrice) / 2
+    distanceToUpper = math.abs(upperPrice - close) / (upperPrice - lowerPrice)
+    distanceToLower = math.abs(lowerPrice - close) / (upperPrice - lowerPrice)
+
+    if close <= lowerPrice
+        -1.0  // Дуже близько до нижньої зони - сильний лонг
+    else if close >= upperPrice
+        1.0   // Дуже близько до верхньої зони - сильний шорт
+    else if close < middlePrice
+        -distanceToLower * zoneStrength  // Ближче до нижньої зони - лонг
+    else
+        distanceToUpper * zoneStrength   // Ближче до верхньої зони - шорт
+
+// Розрахунок індикаторів
+rsi = ta.rsi(close, rsiLength)
+zoneFactor = getZonePosition()
+
+// ПОКРАЩЕНІ УМОВИ ВХОДУ З ВРАХУВАННЯМ ЦІНОВИХ ЗОН
+longCondition = (isLocalLow() or zoneFactor < -0.3) and rsi < rsiOverbought and zoneFactor < 0
+shortCondition = (isLocalHigh() or zoneFactor > 0.3) and rsi > rsiOversold and zoneFactor > 0
+
+// Розрахунок кількості монет
+positionSizeCoins = positionSizeUSD / close
+
+// Змінні для статистики
+var float totalProfit = 0.0
+var int totalTrades = 0
+var int winTrades = 0
+var int lossTrades = 0
+var float largestWin = 0.0
+var float largestLoss = 0.0
+var float currentProfit = 0.0
+
+// Оновлення статистики при закритті угоди
+if strategy.closedtrades > totalTrades
+    lastTradeProfit = strategy.closedtrades.profit(totalTrades)
+    totalProfit := totalProfit + lastTradeProfit
+    totalTrades := totalTrades + 1
+
+    if lastTradeProfit > 0
+        winTrades := winTrades + 1
+        largestWin := math.max(largestWin, lastTradeProfit)
+    else
+        lossTrades := lossTrades + 1
+        largestLoss := math.min(largestLoss, lastTradeProfit)
+
+// Поточний прибуток відкритої позиції
+currentProfit := strategy.openprofit
+
+// Розрахунок додаткової статистики
+winRate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0
+avgWin = winTrades > 0 ? (totalProfit > 0 ? totalProfit : 0) / winTrades : 0
+avgLoss = lossTrades > 0 ? (totalProfit < 0 ? math.abs(totalProfit) : 0) / lossTrades : 0
+profitFactor = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? 100 : 0
+
+// Логіка торгівлі
+if (isTradingPeriod())
+    if (longCondition and strategy.position_size == 0)
+        strategy.entry("Long", strategy.long, qty=positionSizeCoins)
+
+    if (shortCondition and strategy.position_size == 0)
+        strategy.entry("Short", strategy.short, qty=positionSizeCoins)
+
+// Автоматичні виходи
+if (strategy.position_size > 0)
+    entryPrice = strategy.position_avg_price
+    stopLossPrice = entryPrice * (1 - stopLossPerc)
+    takeProfitPrice = entryPrice * (1 + takeProfitPerc)
+
+    if (low <= stopLossPrice)
+        strategy.close("Long", comment="Stop Loss")
+    else if (high >= takeProfitPrice)
+        strategy.close("Long", comment="Take Profit")
+
+if (strategy.position_size < 0)
+    entryPrice = strategy.position_avg_price
+    stopLossPrice = entryPrice * (1 + stopLossPerc)
+    takeProfitPrice = entryPrice * (1 - takeProfitPerc)
+
+    if (high >= stopLossPrice)
+        strategy.close("Short", comment="Stop Loss")
+    else if (low <= takeProfitPrice)
+        strategy.close("Short", comment="Take Profit")
+
+// ВІЗУАЛІЗАЦІЯ ЦІНОВИХ ЗОН
+// Верхня зона
+upperLine = plot(upperPrice, color=color.red, linewidth=2, title="Верхня ціна")
+upperZone = plot(upperPrice * 0.98, color=color.new(color.red, 90), linewidth=1, title="Верхня зона")
+fill(upperLine, upperZone, color=color.new(color.red, 95))
+
+// Нижня зона
+lowerLine = plot(lowerPrice, color=color.green, linewidth=2, title="Нижня ціна")
+lowerZone = plot(lowerPrice * 1.02, color=color.new(color.green, 90), linewidth=1, title="Нижня зона")
+fill(lowerLine, lowerZone, color=color.new(color.green, 95))
+
+// Середня лінія
+middlePrice = (upperPrice + lowerPrice) / 2
+plot(middlePrice, color=color.yellow, linewidth=1, title="Середня ціна")
+
+// Індикатор положення відносно зон
+var zoneLabel = label.new(x=bar_index, y=na, text="", style=label.style_label_center, color=color.new(color.purple, 80))
+if barstate.islast
+    label.set_xy(zoneLabel, bar_index, middlePrice)
+    zoneText = "ПОЛОЖЕННЯ: "
+    zoneColor = color.gray
+
+    if zoneFactor <= -0.5
+        zoneText := zoneText + "СИЛЬНИЙ ЛОНГ"
+        zoneColor := color.green
+    else if zoneFactor <= -0.2
+        zoneText := zoneText + "ЛОНГ"
+        zoneColor := color.lime
+    else if zoneFactor >= 0.5
+        zoneText := zoneText + "СИЛЬНИЙ ШОРТ"
+        zoneColor := color.red
+    else if zoneFactor >= 0.2
+        zoneText := zoneText + "ШОРТ"
+        zoneColor := color.orange
+    else
+        zoneText := zoneText + "НЕЙТРАЛЬНО"
+        zoneColor := color.gray
+
+    label.set_text(zoneLabel, zoneText + "\nФактор: " + str.tostring(zoneFactor, "#.##"))
+    label.set_color(zoneLabel, zoneColor)
+
+// Відображення точок входу з кольорами залежно від сили сигналу
+plotshape(longCondition and isTradingPeriod() and strategy.position_size == 0 ? low * 0.998 : na,
+     style=shape.triangleup, location=location.belowbar,
+     color=zoneFactor < -0.5 ? color.green : color.lime, size=size.normal,
+     text="LONG")
+
+plotshape(shortCondition and isTradingPeriod() and strategy.position_size == 0 ? high * 1.002 : na,
+     style=shape.triangledown, location=location.abovebar,
+     color=zoneFactor > 0.5 ? color.red : color.orange, size=size.normal,
+     text="SHORT")
+
+// ІНФОРМАЦІЙНА ПАНЕЛЬ
+var table statsTable = table.new(position.top_right, 3, 16, bgcolor=color.new(color.gray, 95), border_width=2)
+
+if barstate.islast
+    // Заголовок
+    table.cell(statsTable, 0, 0, "📊 СТАТИСТИКА СТРАТЕГІЇ", text_color=color.white, bgcolor=color.blue)
+
+    // Цінові зони
+    table.cell(statsTable, 0, 1, "Цінові зони:", text_color=color.yellow, bgcolor=color.new(color.gray, 90))
+    table.cell(statsTable, 1, 1, "Рівень", text_color=color.yellow, bgcolor=color.new(color.gray, 90))
+    table.cell(statsTable, 2, 1, "Поточна", text_color=color.yellow, bgcolor=color.new(color.gray, 90))
+
+    table.cell(statsTable, 0, 2, "Верхня:")
+    table.cell(statsTable, 1, 2, "$" + str.tostring(upperPrice))
+    table.cell(statsTable, 2, 2, close >= upperPrice ? "🔴 ДОСЯГНУТА" : "⚪ Нижче",
+              bgcolor=close >= upperPrice ? color.new(color.red, 80) : color.new(color.gray, 80))
+
+    table.cell(statsTable, 0, 3, "Нижня:")
+    table.cell(statsTable, 1, 3, "$" + str.tostring(lowerPrice))
+    table.cell(statsTable, 2, 3, close <= lowerPrice ? "🟢 ДОСЯГНУТА" : "⚪ Вище",
+              bgcolor=close <= lowerPrice ? color.new(color.green, 80) : color.new(color.gray, 80))
+
+    table.cell(statsTable, 0, 4, "Фактор зони:")
+    table.cell(statsTable, 1, 4, str.tostring(zoneFactor, "#.##"))
+    zoneColor = zoneFactor < -0.3 ? color.green : zoneFactor > 0.3 ? color.red : color.gray
+    zoneText = zoneFactor < -0.3 ? "🟢 ЛОНГ" : zoneFactor > 0.3 ? "🔴 ШОРТ" : "⚪ НЕЙТР"
+    table.cell(statsTable, 2, 4, zoneText, bgcolor=zoneColor)
+
+    // Основна статистика
+    table.cell(statsTable, 0, 5, "Статистика:", text_color=color.yellow, bgcolor=color.new(color.gray, 90))
+    table.cell(statsTable, 1, 5, "Значення", text_color=color.yellow, bgcolor=color.new(color.gray, 90))
+    table.cell(statsTable, 2, 5, "Результат", text_color=color.yellow, bgcolor=color.new(color.gray, 90))
+
+    table.cell(statsTable, 0, 6, "Угоди:")
+    table.cell(statsTable, 1, 6, str.tostring(totalTrades))
+    table.cell(statsTable, 2, 6, "", bgcolor=color.new(color.gray, 80))
+
+    table.cell(statsTable, 0, 7, "Винрейт:")
+    table.cell(statsTable, 1, 7, str.tostring(winRate, "#.##") + "%")
+    table.cell(statsTable, 2, 7, winRate >= 50 ? "✅ Хорошо" : "❌ Погано",
+              bgcolor=winRate >= 50 ? color.new(color.green, 80) : color.new(color.red, 80))
+
+    table.cell(statsTable, 0, 8, "Загальний PnL:")
+    table.cell(statsTable, 1, 8, "$" + str.tostring(totalProfit, "#.##"))
+    table.cell(statsTable, 2, 8, totalProfit >= 0 ? "✅ Прибуток" : "❌ Збиток",
+              bgcolor=totalProfit >= 0 ? color.new(color.green, 80) : color.new(color.red, 80))
+
+    table.cell(statsTable, 0, 9, "Поточний PnL:")
+    table.cell(statsTable, 1, 9, "$" + str.tostring(currentProfit, "#.##"))
+    table.cell(statsTable, 2, 9, currentProfit >= 0 ? "📈 В плюсі" : "📉 В мінусі",
+              bgcolor=currentProfit >= 0 ? color.new(color.green, 80) : color.new(color.red, 80))
+
+// Загальна інформація
+bgcolor(isTradingPeriod() ? color.new(color.gray, 95) : na)

@@ -210,3 +210,31 @@ dev-mexc:
 dev-whitebit:
 	@echo "$(YELLOW)🛠️ Розробка WhiteBit...$(NC)"
 	nodemon index.js -- --exchanges whitebit
+
+
+
+# Змінні для підключення до сервера
+SERVER_USER := root
+SERVER_HOST := 164.92.139.111
+SERVER_PATH := /var/www/crm-developer.pro
+SSH_KEY := ~/.ssh/id_rsa
+DEPLOY_SCRIPT := deploy.sh
+
+deploy:
+	@echo "Запуск деплою на сервері..."
+	@ssh -i $(SSH_KEY) $(SERVER_USER)@$(SERVER_HOST) \
+		'cd $(SERVER_PATH) && bash $(DEPLOY_SCRIPT)'
+	@echo "Деплой завершено!"
+
+
+# Скопіювати локальний deploy.sh на сервер і запустити
+deploy-local:
+	@echo "Копіювання deploy.sh на сервер..."
+	@scp -i $(SSH_KEY) $(DEPLOY_SCRIPT) $(SERVER_USER)@$(SERVER_HOST):$(SERVER_PATH)/
+	@echo "Надання прав на виконання..."
+	@ssh -i $(SSH_KEY) $(SERVER_USER)@$(SERVER_HOST) \
+		'chmod +x $(SERVER_PATH)/$(DEPLOY_SCRIPT)'
+	@echo "Запуск деплою..."
+	@ssh -i $(SSH_KEY) $(SERVER_USER)@$(SERVER_HOST) \
+		'cd $(SERVER_PATH) && ./$(DEPLOY_SCRIPT)'
+	@echo "Деплой завершено!"
